@@ -1,16 +1,26 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"net/http"
-	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+)
+
+type Edition string
+
+const (
+	Core        Edition = "core"
+	Accelerated Edition = "accelerated"
+	Condensed   Edition = "condensed"
+	Custom      Edition = "custom"
 )
 
 type Character struct {
-	ID          string   `json:"id"`
+	ID          string   `json:"_id"`
+	Edition     Edition  `json:"edition"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Images      []string `json:"images"`
@@ -25,23 +35,31 @@ type Character struct {
 }
 
 func charactersList(c *gin.Context) {
-	byteValue, err := os.ReadFile("example.json")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	coll := mongoClient.Database("main").Collection("characters")
+	cur, err := coll.Find(ctx, bson.D{})
 	if err != nil {
-		c.String(http.StatusInternalServerError, "read error: %v", err)
+		c.String(http.StatusInternalServerError, "find error: %v", err)
+		return
+	}
+	defer cur.Close(ctx)
+
+	var results []map[string]interface{}
+	for cur.Next(ctx) {
+		var doc bson.M
+		if err := cur.Decode(&doc); err != nil {
+			c.String(http.StatusInternalServerError, "decode error: %v", err)
+			return
+		}
+
+		results = append(results, doc)
+	}
+	if err := cur.Err(); err != nil {
+		c.String(http.StatusInternalServerError, "cursor error: %v", err)
 		return
 	}
 
-	trim := bytes.TrimSpace(byteValue)
-	if len(trim) == 0 {
-		c.String(http.StatusBadRequest, "empty json")
-		return
-	}
-
-	var character Character
-	if err := json.Unmarshal(byteValue, &character); err != nil {
-		c.String(http.StatusInternalServerError, "unmarshal error: %v", err)
-		return
-	}
-
-	c.IndentedJSON(http.StatusOK, character)
+	c.IndentedJSON(http.StatusOK, results)
 }
