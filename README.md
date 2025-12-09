@@ -5,8 +5,9 @@ Made by Oleh Ruban "irik1"
 
 Technologies used:
 Backend - Golang with Gin framework
-Frontend - Vue.js with assistanse of Cursor Ai agent
+Frontend - Vue.js
 Database - MongoDB
+Storage - MinIO object storage service
 
 
 Stages of development
