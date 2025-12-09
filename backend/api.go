@@ -28,7 +28,7 @@ type Character struct {
 
 	Aspects      interface{}       `json:"aspects" bson:"aspects"`
 	Skills       interface{}       `json:"skills" bson:"skills"`
-	Refresh      int               `json:"refresh" bson:"refresh"`
+	Refresh      interface{}       `json:"refresh" bson:"refresh"`
 	Extras       string            `json:"extras" bson:"extras"`
 	Stunts       map[string]string `json:"stunts" bson:"stunts"`
 	Stress       interface{}       `json:"stress" bson:"stress"`

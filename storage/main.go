@@ -112,8 +112,8 @@ func main() {
 
 	// Storage endpoints
 	router.POST("/upload", uploadFile)
-	router.GET("/download/:filename", downloadFile)
-	router.DELETE("/delete/:filename", deleteFile)
+	router.GET("/download/*filepath", downloadFile)
+	router.DELETE("/delete/*filepath", deleteFile)
 	router.GET("/list", listFiles)
 
 	port := os.Getenv("STORAGE_PORT")

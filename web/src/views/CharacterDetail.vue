@@ -5,9 +5,14 @@
     <div v-else-if="character" class="character-wrapper">
       <div class="header-actions">
         <button @click="goBack" class="back-btn">← Back to Characters</button>
-        <button @click="saveCharacter" class="save-btn" :disabled="saving">
-          {{ saving ? 'Saving...' : 'Save Changes' }}
-        </button>
+        <div class="header-right-actions">
+          <button @click="isLocked = !isLocked" class="lock-btn" :class="{ locked: isLocked }">
+            {{ isLocked ? '🔒 Locked' : '🔓 Unlocked' }}
+          </button>
+          <button @click="saveCharacter" class="save-btn" :disabled="saving">
+            {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
       </div>
 
       <!-- Tabs -->
@@ -34,87 +39,89 @@
           <span class="character-edition-label">System: {{ editedCharacter.edition || 'Unknown' }}</span>
         </div>
 
-        <!-- Images Section - Moved to Top -->
-        <div class="form-section">
-          <h2 class="section-header">Images</h2>
-          <div class="images-section">
-            <div class="image-upload-area">
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/*"
-                @change="handleFileSelect"
-                style="display: none"
-              />
-              <button @click="$refs.fileInput.click()" class="upload-btn" :disabled="uploading">
-                {{ uploading ? 'Uploading...' : '📷 Upload Image' }}
-              </button>
-              <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
-            </div>
-            
-            <div v-if="characterImages.length > 0" class="images-grid">
-              <div v-for="(imageUrl, index) in characterImages" :key="index" class="image-item">
-                <img :src="getImageUrl(imageUrl)" :alt="`Character image ${index + 1}`" class="character-image" />
-                <button @click="removeImage(index)" class="remove-image-btn" title="Remove image">×</button>
-              </div>
-            </div>
-            <div v-else class="no-images">No images uploaded yet</div>
-          </div>
-        </div>
-
-        <!-- Character Image at Top (First Image) -->
-        <div v-if="characterImages.length > 0" class="character-image-header">
-          <img 
-            :src="getImageUrl(characterImages[0])" 
-            :alt="character.name || 'Character image'" 
-            class="character-header-image"
-          />
-        </div>
-
-        <!-- Basic Information -->
+        <!-- Basic Information - Name, Description, Images inline -->
         <div class="form-section">
           <h2 class="section-header">Basic Information</h2>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Name</label>
-              <input v-model="editedCharacter.name" type="text" class="form-input" />
+          <div class="name-description-images-row">
+            <div class="name-description-column">
+              <div class="form-group">
+                <label>Name</label>
+                <input v-model="editedCharacter.name" type="text" class="form-input" :disabled="isLocked" />
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea v-model="editedCharacter.description" class="form-textarea" rows="4" :disabled="isLocked"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Refreshes</label>
+                <div class="refresh-display">
+                  <span class="refresh-text">Refreshes {{ editedCharacter.refresh?.current || 0 }}/{{ editedCharacter.refresh?.max || 0 }}</span>
+                  <div class="refresh-controls">
+                    <button @click="updateRefresh('current', -1)" class="refresh-btn" :disabled="(editedCharacter.refresh?.current || 0) <= 0">−</button>
+                    <button @click="updateRefresh('current', 1)" class="refresh-btn" :disabled="(editedCharacter.refresh?.current || 0) >= (editedCharacter.refresh?.max || 0)">+</button>
+                    <span v-if="!isLocked" class="refresh-separator">|</span>
+                    <template v-if="!isLocked">
+                      <button @click="updateRefresh('max', -1)" class="refresh-btn" :disabled="(editedCharacter.refresh?.max || 0) <= 1">−</button>
+                      <button @click="updateRefresh('max', 1)" class="refresh-btn">+</button>
+                    </template>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Refresh</label>
-              <input v-model.number="editedCharacter.refresh" type="number" class="form-input" />
+            <div class="images-column">
+              <div class="form-group">
+                <label>Images</label>
+                <div class="images-section-compact">
+                  <div v-if="!isLocked" class="image-upload-area">
+                    <input
+                      ref="fileInput"
+                      type="file"
+                      accept="image/*"
+                      @change="handleFileSelect"
+                      style="display: none"
+                    />
+                    <button @click="$refs.fileInput.click()" class="upload-btn" :disabled="uploading">
+                      {{ uploading ? 'Uploading...' : '📷 Upload' }}
+                    </button>
+                    <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
+                  </div>
+                  
+                  <div v-if="characterImages.length > 0" class="images-grid-compact">
+                    <div v-for="(imageUrl, index) in characterImages" :key="index" class="image-item-compact">
+                      <img :src="getImageUrl(imageUrl)" :alt="`Character image ${index + 1}`" class="character-image-compact" />
+                      <button v-if="!isLocked" @click="removeImage(index)" class="remove-image-btn-compact" title="Remove image">×</button>
+                    </div>
+                  </div>
+                  <div v-else class="no-images-compact">No images</div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea v-model="editedCharacter.description" class="form-textarea" rows="4"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Extras</label>
-            <textarea v-model="editedCharacter.extras" class="form-textarea" rows="3"></textarea>
           </div>
         </div>
 
         <!-- Aspects -->
         <div class="form-section">
           <h2 class="section-header">Aspects</h2>
-          <div class="form-group">
-            <label>High Concept</label>
-            <input
-              v-model="editedCharacter.aspects.highConcept"
-              type="text"
-              class="form-input"
-              placeholder="High Concept"
-            />
-          </div>
-          <div class="form-group">
-            <label>Trouble</label>
-            <input
-              v-model="editedCharacter.aspects.trouble"
-              type="text"
-              class="form-input"
-              placeholder="Trouble"
-            />
-          </div>
+            <div class="form-group">
+              <label>High Concept</label>
+              <input
+                v-model="editedCharacter.aspects.highConcept"
+                type="text"
+                class="form-input"
+                placeholder="High Concept"
+                :disabled="isLocked"
+              />
+            </div>
+            <div class="form-group">
+              <label>Trouble</label>
+              <input
+                v-model="editedCharacter.aspects.trouble"
+                type="text"
+                class="form-input"
+                placeholder="Trouble"
+                :disabled="isLocked"
+              />
+            </div>
           <div class="form-group">
             <label>Other Aspects</label>
             <div v-for="(aspect, index) in (editedCharacter.aspects.others || [])" :key="index" class="form-group" style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;">
@@ -124,12 +131,13 @@
                 class="form-input"
                 :placeholder="`Aspect ${index + 1}`"
                 style="flex: 1;"
+                :disabled="isLocked"
               />
-              <button @click="removeAspect(index)" class="btn-icon btn-remove" title="Remove aspect">
+              <button v-if="!isLocked" @click="removeAspect(index)" class="btn-icon btn-remove" title="Remove aspect">
                 ×
               </button>
             </div>
-            <button @click="addAspect" class="add-btn" style="margin-top: 0.5rem;">
+            <button v-if="!isLocked" @click="addAspect" class="add-btn" style="margin-top: 0.5rem;">
               + Add Aspect
             </button>
           </div>
@@ -146,6 +154,7 @@
                 class="form-input skill-level-input"
                 placeholder="+4"
                 @blur="(e) => updateSkillLevel(group.id, e.target.value)"
+                :disabled="isLocked"
               />
               <span class="skill-level-description">{{ getSkillLevelDescription(group.level) }}</span>
             </div>
@@ -156,18 +165,19 @@
                   type="text"
                   class="form-input skill-input-compact"
                   :placeholder="`Skill name`"
+                  :disabled="isLocked"
                 />
-                <button @click="removeSkill(group.id, index)" class="btn-icon btn-remove" title="Remove skill">
+                <button v-if="!isLocked" @click="removeSkill(group.id, index)" class="btn-icon btn-remove" title="Remove skill">
                   ×
                 </button>
               </div>
-              <button @click="addSkill(group.id)" class="add-btn-small">+ Add Skill</button>
+              <button v-if="!isLocked" @click="addSkill(group.id)" class="add-btn-small">+ Add Skill</button>
             </div>
-            <button @click="removeSkillLevel(group.id)" class="btn-icon btn-remove" title="Remove skill level">
+            <button v-if="!isLocked" @click="removeSkillLevel(group.id)" class="btn-icon btn-remove" title="Remove skill level">
               ×
             </button>
           </div>
-          <button @click="addSkillLevel" class="add-btn" style="margin-top: 1rem;">
+          <button v-if="!isLocked" @click="addSkillLevel" class="add-btn" style="margin-top: 1rem;">
             + Add Skill Level
           </button>
         </div>
@@ -186,14 +196,14 @@
             <tbody>
               <tr v-for="(stunt, index) in stunts" :key="stunt.id">
                 <td>
-                  <input v-model="stunt.name" type="text" class="form-input" placeholder="Stunt name" />
+                  <input v-model="stunt.name" type="text" class="form-input" placeholder="Stunt name" :disabled="isLocked" />
                 </td>
                 <td>
-                  <textarea v-model="stunt.description" class="form-textarea" rows="2" placeholder="Stunt description"></textarea>
+                  <textarea v-model="stunt.description" class="form-textarea" rows="2" placeholder="Stunt description" :disabled="isLocked"></textarea>
                 </td>
                 <td>
                   <div class="table-actions">
-                    <button @click="removeStunt(index)" class="btn-icon btn-remove" title="Remove stunt">
+                    <button v-if="!isLocked" @click="removeStunt(index)" class="btn-icon btn-remove" title="Remove stunt">
                       ×
                     </button>
                   </div>
@@ -206,7 +216,7 @@
               </tr>
             </tbody>
           </table>
-          <button @click="addStunt" class="add-btn">+ Add Stunt</button>
+          <button v-if="!isLocked" @click="addStunt" class="add-btn">+ Add Stunt</button>
         </div>
 
         <!-- Stress -->
@@ -220,8 +230,9 @@
                   type="text"
                   class="form-input stress-type-input"
                   @blur="(e) => updateStressTypeName(stressType, e.target.value)"
+                  :disabled="isLocked"
                 />
-                <button @click="removeStressType(stressType)" class="btn-icon btn-remove" title="Remove stress type">
+                <button v-if="!isLocked" @click="removeStressType(stressType)" class="btn-icon btn-remove" title="Remove stress type">
                   ×
                 </button>
               </div>
@@ -240,10 +251,11 @@
                       min="1"
                       class="stress-box-size-input"
                       @click.stop
+                      :disabled="isLocked"
                     />
                   </label>
                   <button 
-                    v-if="index === (stressData.boxes || []).length - 1" 
+                    v-if="!isLocked && index === (stressData.boxes || []).length - 1" 
                     @click="removeStressBox(stressType, index)" 
                     class="btn-icon btn-remove stress-box-remove" 
                     title="Remove box"
@@ -251,11 +263,11 @@
                     ×
                   </button>
                 </div>
-                <button @click="addStressBox(stressType)" class="add-btn-small">+</button>
+                <button v-if="!isLocked" @click="addStressBox(stressType)" class="add-btn-small">+</button>
               </div>
             </div>
           </div>
-          <button @click="addStressType" class="add-btn" style="margin-top: 0.5rem;">
+          <button v-if="!isLocked" @click="addStressType" class="add-btn" style="margin-top: 0.5rem;">
             + Add Stress Type
           </button>
         </div>
@@ -281,6 +293,7 @@
                     type="text"
                     class="form-input"
                     placeholder="Type"
+                    :disabled="isLocked"
                   />
                 </td>
                 <td>
@@ -291,6 +304,7 @@
                     min="1"
                     max="9"
                     style="width: 60px;"
+                    :disabled="isLocked"
                   />
                 </td>
                 <td>
@@ -310,7 +324,7 @@
                 </td>
                 <td>
                   <div class="table-actions">
-                    <button @click="removeConsequence(index)" class="btn-icon btn-remove" title="Remove consequence">
+                    <button v-if="!isLocked" @click="removeConsequence(index)" class="btn-icon btn-remove" title="Remove consequence">
                       ×
                     </button>
                   </div>
@@ -323,7 +337,15 @@
               </tr>
             </tbody>
           </table>
-          <button @click="addConsequence" class="add-btn">+ Add Consequence</button>
+          <button v-if="!isLocked" @click="addConsequence" class="add-btn">+ Add Consequence</button>
+        </div>
+
+        <!-- Extras - Moved under Consequences -->
+        <div class="form-section">
+          <h2 class="section-header">Extras</h2>
+          <div class="form-group">
+            <textarea v-model="editedCharacter.extras" class="form-textarea" rows="3" :disabled="isLocked"></textarea>
+          </div>
         </div>
       </div>
 
@@ -390,6 +412,8 @@ const {
   removeImage,
   getImageUrl,
   goBack,
-  activeTab
+  activeTab,
+  isLocked,
+  updateRefresh
 } = useCharacterDetail()
 </script>

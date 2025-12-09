@@ -27,6 +27,7 @@ export function useCharacterDetail() {
   // Consequences management - object with keys like minor, moderate, severe
   const consequences = ref({})
   const activeTab = ref('main')
+  const isLocked = ref(false)
 
   const loadCharacter = async () => {
     loading.value = true
@@ -149,6 +150,29 @@ export function useCharacterDetail() {
           characterImages.value = [...editedCharacter.value.images]
         } else {
           characterImages.value = []
+        }
+        
+        // Initialize refresh - handle both old number format and new object format
+        if (editedCharacter.value.refresh && typeof editedCharacter.value.refresh === 'object') {
+          // Already in object format, ensure both fields exist
+          if (typeof editedCharacter.value.refresh.current !== 'number') {
+            editedCharacter.value.refresh.current = editedCharacter.value.refresh.max || 3
+          }
+          if (typeof editedCharacter.value.refresh.max !== 'number') {
+            editedCharacter.value.refresh.max = editedCharacter.value.refresh.current || 3
+          }
+        } else if (typeof editedCharacter.value.refresh === 'number') {
+          // Convert old number format to object format
+          editedCharacter.value.refresh = {
+            current: editedCharacter.value.refresh,
+            max: editedCharacter.value.refresh
+          }
+        } else {
+          // Default
+          editedCharacter.value.refresh = {
+            current: 3,
+            max: 3
+          }
         }
       } else {
         error.value = 'Character not found'
@@ -447,6 +471,27 @@ export function useCharacterDetail() {
     router.push('/characters')
   }
 
+  const updateRefresh = (field, delta) => {
+    if (!editedCharacter.value.refresh) {
+      editedCharacter.value.refresh = { current: 0, max: 3 }
+    }
+    if (field === 'current') {
+      const newValue = (editedCharacter.value.refresh.current || 0) + delta
+      if (newValue >= 0 && newValue <= (editedCharacter.value.refresh.max || 0)) {
+        editedCharacter.value.refresh.current = newValue
+      }
+    } else if (field === 'max') {
+      const newValue = (editedCharacter.value.refresh.max || 0) + delta
+      if (newValue >= 1) {
+        editedCharacter.value.refresh.max = newValue
+        // Ensure current doesn't exceed max
+        if (editedCharacter.value.refresh.current > newValue) {
+          editedCharacter.value.refresh.current = newValue
+        }
+      }
+    }
+  }
+
   onMounted(() => {
     loadCharacter()
   })
@@ -488,7 +533,9 @@ export function useCharacterDetail() {
     handleFileSelect,
     removeImage,
     getImageUrl,
-    goBack
+    goBack,
+    isLocked,
+    updateRefresh
   }
 }
 

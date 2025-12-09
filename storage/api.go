@@ -67,11 +67,14 @@ func uploadFile(c *gin.Context) {
 func downloadFile(c *gin.Context) {
 	bucketName := os.Getenv("MINIO_BUCKET_NAME")
 
-	filename := c.Param("filename")
-	if filename == "" {
+	// Get filepath parameter and remove leading slash
+	pathParam := c.Param("filepath")
+	if pathParam == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
 		return
 	}
+	// Remove leading slash if present
+	filename := strings.TrimPrefix(pathParam, "/")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -105,11 +108,14 @@ func downloadFile(c *gin.Context) {
 func deleteFile(c *gin.Context) {
 	bucketName := os.Getenv("MINIO_BUCKET_NAME")
 
-	filename := c.Param("filename")
-	if filename == "" {
+	// Get filepath parameter and remove leading slash
+	pathParam := c.Param("filepath")
+	if pathParam == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Filename is required"})
 		return
 	}
+	// Remove leading slash if present
+	filename := strings.TrimPrefix(pathParam, "/")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

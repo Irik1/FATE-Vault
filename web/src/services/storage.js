@@ -35,11 +35,14 @@ export const storageService = {
   /**
    * Get the download URL for a file
    * @param {string} filename - The filename (can include folder path)
-   * @returns {string} Full URL to download the file
+   * @returns {string} Full URL to download the file via storage service (which proxies to MinIO)
    */
   getFileUrl(filename) {
     // Remove leading slash if present
-    const cleanFilename = filename.startsWith('/') ? filename.slice(1) : filename
+    let cleanFilename = filename.startsWith('/') ? filename.slice(1) : filename
+    
+    // Use storage service endpoint which handles MinIO authentication
+    // Format: /storage/download/images/characters/...
     return `${STORAGE_BASE_URL}/download/${cleanFilename}`
   },
 
