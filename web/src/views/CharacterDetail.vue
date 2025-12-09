@@ -2,39 +2,42 @@
   <div class="character-detail">
     <div v-if="loading" class="loading">Loading character...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="character" class="character-content">
+    <div v-else-if="character" class="character-wrapper">
       <div class="header-actions">
-        <button @click="$router.push('/characters')" class="back-btn">← Back to Characters</button>
+        <button @click="goBack" class="back-btn">← Back to Characters</button>
         <button @click="saveCharacter" class="save-btn" :disabled="saving">
           {{ saving ? 'Saving...' : 'Save Changes' }}
         </button>
       </div>
-      
-      <div class="character-form">
-        <div class="form-group">
-          <label>Name</label>
-          <input v-model="editedCharacter.name" type="text" class="form-input" />
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button 
+          @click="activeTab = 'main'" 
+          :class="['tab-button', { active: activeTab === 'main' }]"
+        >
+          Main
+        </button>
+        <button 
+          @click="activeTab = 'notes'" 
+          :class="['tab-button', { active: activeTab === 'notes' }]"
+        >
+          Notes
+        </button>
+      </div>
+
+      <!-- Main Tab -->
+      <div v-if="activeTab === 'main'" class="character-form">
+        <!-- Character Name and Edition at Top -->
+        <div class="character-header-info">
+          <h1 class="character-name">{{ editedCharacter.name || 'Unnamed Character' }}</h1>
+          <span class="character-edition-label">System: {{ editedCharacter.edition || 'Unknown' }}</span>
         </div>
-        
-        <div class="form-group">
-          <label>Edition</label>
-          <select v-model="editedCharacter.edition" class="form-input">
-            <option value="core">Core</option>
-            <option value="accelerated">Accelerated</option>
-            <option value="condensed">Condensed</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label>Description</label>
-          <textarea v-model="editedCharacter.description" class="form-textarea" rows="4"></textarea>
-        </div>
-        
+
+        <!-- Images Section - Moved to Top -->
         <div class="form-section">
-          <h3>Images</h3>
+          <h2 class="section-header">Images</h2>
           <div class="images-section">
-            <!-- Image Upload -->
             <div class="image-upload-area">
               <input
                 ref="fileInput"
@@ -49,7 +52,6 @@
               <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
             </div>
             
-            <!-- Display Images -->
             <div v-if="characterImages.length > 0" class="images-grid">
               <div v-for="(imageUrl, index) in characterImages" :key="index" class="image-item">
                 <img :src="getImageUrl(imageUrl)" :alt="`Character image ${index + 1}`" class="character-image" />
@@ -59,78 +61,287 @@
             <div v-else class="no-images">No images uploaded yet</div>
           </div>
         </div>
-        
-        <div class="form-group">
-          <label>Refresh</label>
-          <input v-model.number="editedCharacter.refresh" type="number" class="form-input" />
+
+        <!-- Character Image at Top (First Image) -->
+        <div v-if="characterImages.length > 0" class="character-image-header">
+          <img 
+            :src="getImageUrl(characterImages[0])" 
+            :alt="character.name || 'Character image'" 
+            class="character-header-image"
+          />
         </div>
-        
-        <div class="form-group">
-          <label>Extras</label>
-          <textarea v-model="editedCharacter.extras" class="form-textarea" rows="3"></textarea>
-        </div>
-        
+
+        <!-- Basic Information -->
         <div class="form-section">
-          <h3>Aspects</h3>
+          <h2 class="section-header">Basic Information</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input v-model="editedCharacter.name" type="text" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>Refresh</label>
+              <input v-model.number="editedCharacter.refresh" type="number" class="form-input" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea v-model="editedCharacter.description" class="form-textarea" rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Extras</label>
+            <textarea v-model="editedCharacter.extras" class="form-textarea" rows="3"></textarea>
+          </div>
+        </div>
+
+        <!-- Aspects -->
+        <div class="form-section">
+          <h2 class="section-header">Aspects</h2>
           <div class="form-group">
             <label>High Concept</label>
             <input
-              v-if="editedCharacter.aspects && typeof editedCharacter.aspects === 'object'"
               v-model="editedCharacter.aspects.highConcept"
               type="text"
               class="form-input"
+              placeholder="High Concept"
             />
-            <textarea
-              v-else
-              v-model="aspectsText"
-              class="form-textarea"
-              rows="3"
-              placeholder='Enter aspects as JSON, e.g., {"highConcept": "...", "trouble": "...", "others": [...]}'
-            ></textarea>
           </div>
-        </div>
-        
-        <div class="form-section">
-          <h3>Skills</h3>
-          <textarea
-            v-model="skillsText"
-            class="form-textarea"
-            rows="5"
-            placeholder='Enter skills as JSON, e.g., {"+4": ["Skill1"], "+3": ["Skill2"]}'
-          ></textarea>
-        </div>
-        
-        <div class="form-section">
-          <h3>Stunts</h3>
-          <div v-for="(stunt, index) in stuntsArray" :key="index" class="stunt-item">
-            <textarea
-              v-model="stuntsArray[index]"
-              class="form-textarea"
-              rows="2"
-              placeholder="Enter stunt description"
-            ></textarea>
-            <button @click="removeStunt(index)" class="remove-btn">Remove</button>
+          <div class="form-group">
+            <label>Trouble</label>
+            <input
+              v-model="editedCharacter.aspects.trouble"
+              type="text"
+              class="form-input"
+              placeholder="Trouble"
+            />
           </div>
-          <button @click="addStunt" class="add-btn">Add Stunt</button>
-        </div>
-        
-        <div class="form-section">
-          <h3>Stress</h3>
-          <div class="stress-group">
-            <div class="form-group">
-              <label>Physical</label>
+          <div class="form-group">
+            <label>Other Aspects</label>
+            <div v-for="(aspect, index) in (editedCharacter.aspects.others || [])" :key="index" class="form-group" style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;">
               <input
-                v-if="editedCharacter.stress && typeof editedCharacter.stress === 'object'"
-                v-model.number="editedCharacter.stress.physical"
-                type="number"
+                v-model="editedCharacter.aspects.others[index]"
+                type="text"
                 class="form-input"
+                :placeholder="`Aspect ${index + 1}`"
+                style="flex: 1;"
               />
-              <input v-else v-model="stressText" type="text" class="form-input" placeholder='{"physical": 2, "mental": 3}' />
+              <button @click="removeAspect(index)" class="btn-icon btn-remove" title="Remove aspect">
+                ×
+              </button>
             </div>
+            <button @click="addAspect" class="add-btn" style="margin-top: 0.5rem;">
+              + Add Aspect
+            </button>
+          </div>
+        </div>
+
+        <!-- Skills -->
+        <div class="form-section">
+          <h2 class="section-header">Skills</h2>
+          <div v-for="group in sortedSkills" :key="group.id" class="skill-group">
+            <div class="skill-level-controls">
+              <input
+                :value="group.level"
+                type="text"
+                class="form-input skill-level-input"
+                placeholder="+4"
+                @blur="(e) => updateSkillLevel(group.id, e.target.value)"
+              />
+              <span class="skill-level-description">{{ getSkillLevelDescription(group.level) }}</span>
+            </div>
+            <div class="skill-list-compact">
+              <div v-for="(skill, index) in group.skills" :key="`${group.id}-${index}`" class="skill-item-compact">
+                <input
+                  v-model="group.skills[index]"
+                  type="text"
+                  class="form-input skill-input-compact"
+                  :placeholder="`Skill name`"
+                />
+                <button @click="removeSkill(group.id, index)" class="btn-icon btn-remove" title="Remove skill">
+                  ×
+                </button>
+              </div>
+              <button @click="addSkill(group.id)" class="add-btn-small">+ Add Skill</button>
+            </div>
+            <button @click="removeSkillLevel(group.id)" class="btn-icon btn-remove" title="Remove skill level">
+              ×
+            </button>
+          </div>
+          <button @click="addSkillLevel" class="add-btn" style="margin-top: 1rem;">
+            + Add Skill Level
+          </button>
+        </div>
+
+        <!-- Stunts -->
+        <div class="form-section">
+          <h2 class="section-header">Stunts</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 200px;">Name</th>
+                <th>Description</th>
+                <th style="width: 80px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(stunt, index) in stunts" :key="stunt.id">
+                <td>
+                  <input v-model="stunt.name" type="text" class="form-input" placeholder="Stunt name" />
+                </td>
+                <td>
+                  <textarea v-model="stunt.description" class="form-textarea" rows="2" placeholder="Stunt description"></textarea>
+                </td>
+                <td>
+                  <div class="table-actions">
+                    <button @click="removeStunt(index)" class="btn-icon btn-remove" title="Remove stunt">
+                      ×
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="stunts.length === 0">
+                <td colspan="3" style="text-align: center; color: #6c757d; padding: 2rem;">
+                  No stunts added yet
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <button @click="addStunt" class="add-btn">+ Add Stunt</button>
+        </div>
+
+        <!-- Stress -->
+        <div class="form-section">
+          <h2 class="section-header">Stress</h2>
+          <div class="stress-line">
+            <div v-for="(stressData, stressType) in editedCharacter.stress" :key="stressType" class="stress-type-line">
+              <div class="stress-type-header">
+                <input
+                  :value="stressType"
+                  type="text"
+                  class="form-input stress-type-input"
+                  @blur="(e) => updateStressTypeName(stressType, e.target.value)"
+                />
+                <button @click="removeStressType(stressType)" class="btn-icon btn-remove" title="Remove stress type">
+                  ×
+                </button>
+              </div>
+              <div class="stress-boxes-line">
+                <div v-for="(box, index) in stressData.boxes || []" :key="index" class="stress-box-checkbox">
+                  <input
+                    type="checkbox"
+                    v-model="box.isFilled"
+                    :id="`${stressType}-${index}`"
+                    class="stress-checkbox"
+                  />
+                  <label :for="`${stressType}-${index}`" class="stress-box-label">
+                    <input
+                      v-model.number="box.size"
+                      type="number"
+                      min="1"
+                      class="stress-box-size-input"
+                      @click.stop
+                    />
+                  </label>
+                  <button 
+                    v-if="index === (stressData.boxes || []).length - 1" 
+                    @click="removeStressBox(stressType, index)" 
+                    class="btn-icon btn-remove stress-box-remove" 
+                    title="Remove box"
+                  >
+                    ×
+                  </button>
+                </div>
+                <button @click="addStressBox(stressType)" class="add-btn-small">+</button>
+              </div>
+            </div>
+          </div>
+          <button @click="addStressType" class="add-btn" style="margin-top: 0.5rem;">
+            + Add Stress Type
+          </button>
+        </div>
+
+        <!-- Consequences -->
+        <div class="form-section">
+          <h2 class="section-header">Consequences</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 100px;">Type</th>
+                <th style="width: 70px;">Size</th>
+                <th>Description</th>
+                <th style="width: 110px;">Status</th>
+                <th style="width: 60px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(consequence, index) in consequences" :key="consequence.id || index">
+                <td>
+                  <input
+                    v-model="consequence.type"
+                    type="text"
+                    class="form-input"
+                    placeholder="Type"
+                  />
+                </td>
+                <td>
+                  <input 
+                    v-model.number="consequence.size" 
+                    type="number" 
+                    class="form-input consequence-size-input"
+                    min="1"
+                    max="9"
+                    style="width: 60px;"
+                  />
+                </td>
+                <td>
+                  <input 
+                    v-model="consequence.description" 
+                    type="text" 
+                    class="form-input" 
+                    placeholder="Consequence description"
+                  />
+                </td>
+                <td>
+                  <select v-model="consequence.status" class="form-select consequence-status-select" style="width: 100px;">
+                    <option value="none">None</option>
+                    <option value="active">Active</option>
+                    <option value="healed">Healed</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="table-actions">
+                    <button @click="removeConsequence(index)" class="btn-icon btn-remove" title="Remove consequence">
+                      ×
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="consequences.length === 0">
+                <td colspan="5" style="text-align: center; color: #6c757d; padding: 2rem;">
+                  No consequences added yet
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <button @click="addConsequence" class="add-btn">+ Add Consequence</button>
+        </div>
+      </div>
+
+      <!-- Notes Tab -->
+      <div v-if="activeTab === 'notes'" class="character-form">
+        <div class="form-section">
+          <h2 class="section-header">Character Notes</h2>
+          <div class="form-group">
+            <textarea 
+              v-model="editedCharacter.notes" 
+              class="form-textarea notes-textarea" 
+              rows="20"
+              placeholder="Enter your character notes here..."
+            ></textarea>
           </div>
         </div>
       </div>
-      
+
       <div v-if="saveMessage" class="save-message" :class="{ success: saveSuccess, error: !saveSuccess }">
         {{ saveMessage }}
       </div>
@@ -139,442 +350,46 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { characterService } from '../services/api'
-import { storageService } from '../services/storage'
+import { useCharacterDetail } from './CharacterDetail.script.js'
+import './CharacterDetail.style.css'
 
-const route = useRoute()
-const character = ref(null)
-const editedCharacter = ref({})
-const loading = ref(true)
-const error = ref(null)
-const saving = ref(false)
-const saveMessage = ref('')
-const saveSuccess = ref(false)
-const aspectsText = ref('')
-const skillsText = ref('')
-const stressText = ref('')
-const stuntsArray = ref([])
-const uploading = ref(false)
-const uploadError = ref('')
-const characterImages = ref([])
-
-const loadCharacter = async () => {
-  loading.value = true
-  error.value = null
-  try {
-    const data = await characterService.getCharacters()
-    const found = data.find(c => (c._id || c.id) === route.params.id)
-    if (found) {
-      character.value = found
-      editedCharacter.value = JSON.parse(JSON.stringify(found))
-      
-      // Initialize form fields
-      if (typeof editedCharacter.value.aspects === 'object') {
-        aspectsText.value = JSON.stringify(editedCharacter.value.aspects, null, 2)
-      } else {
-        aspectsText.value = ''
-      }
-      
-      if (typeof editedCharacter.value.skills === 'object') {
-        skillsText.value = JSON.stringify(editedCharacter.value.skills, null, 2)
-      } else {
-        skillsText.value = ''
-      }
-      
-      if (typeof editedCharacter.value.stress === 'object') {
-        stressText.value = JSON.stringify(editedCharacter.value.stress, null, 2)
-      } else {
-        stressText.value = ''
-      }
-      
-      if (Array.isArray(editedCharacter.value.stunts)) {
-        stuntsArray.value = [...editedCharacter.value.stunts]
-      } else if (typeof editedCharacter.value.stunts === 'object') {
-        stuntsArray.value = Object.values(editedCharacter.value.stunts)
-      } else {
-        stuntsArray.value = []
-      }
-      
-      // Initialize images
-      if (Array.isArray(editedCharacter.value.images)) {
-        characterImages.value = [...editedCharacter.value.images]
-      } else {
-        characterImages.value = []
-      }
-    } else {
-      error.value = 'Character not found'
-    }
-  } catch (err) {
-    error.value = 'Failed to load character. Please make sure the backend is running.'
-    console.error('Error loading character:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-const parseJsonField = (text, defaultValue) => {
-  if (!text || !text.trim()) return defaultValue
-  try {
-    return JSON.parse(text)
-  } catch (e) {
-    return defaultValue
-  }
-}
-
-const saveCharacter = async () => {
-  saving.value = true
-  saveMessage.value = ''
-  
-  try {
-    // Parse JSON fields
-    editedCharacter.value.aspects = parseJsonField(aspectsText.value, editedCharacter.value.aspects)
-    editedCharacter.value.skills = parseJsonField(skillsText.value, editedCharacter.value.skills)
-    editedCharacter.value.stress = parseJsonField(stressText.value, editedCharacter.value.stress)
-    editedCharacter.value.stunts = stuntsArray.value.filter(s => s && s.trim())
-    editedCharacter.value.images = characterImages.value
-    
-    // For now, we'll just log since the backend might not have update endpoint yet
-    // In a real scenario, you'd call: await characterService.updateCharacter(route.params.id, editedCharacter.value)
-    console.log('Saving character:', editedCharacter.value)
-    
-    saveMessage.value = 'Character saved successfully! (Note: Backend update endpoint may need to be implemented)'
-    saveSuccess.value = true
-    
-    setTimeout(() => {
-      saveMessage.value = ''
-    }, 3000)
-  } catch (err) {
-    saveMessage.value = 'Failed to save character: ' + err.message
-    saveSuccess.value = false
-    console.error('Error saving character:', err)
-  } finally {
-    saving.value = false
-  }
-}
-
-const addStunt = () => {
-  stuntsArray.value.push('')
-}
-
-const removeStunt = (index) => {
-  stuntsArray.value.splice(index, 1)
-}
-
-const handleFileSelect = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-  
-  // Validate file type
-  if (!file.type.startsWith('image/')) {
-    uploadError.value = 'Please select an image file'
-    setTimeout(() => { uploadError.value = '' }, 3000)
-    return
-  }
-  
-  // Validate file size (max 10MB)
-  if (file.size > 10 * 1024 * 1024) {
-    uploadError.value = 'File size must be less than 10MB'
-    setTimeout(() => { uploadError.value = '' }, 3000)
-    return
-  }
-  
-  uploading.value = true
-  uploadError.value = ''
-  
-  try {
-    // Upload to storage service
-    const folder = `images/characters/${route.params.id || 'temp'}`
-    const result = await storageService.uploadFile(file, folder)
-    
-    // Add to images array - use filename from response
-    // The filename includes the folder path (e.g., "images/characters/123/image.jpg")
-    characterImages.value.push(result.filename)
-    
-    // Update edited character
-    editedCharacter.value.images = [...characterImages.value]
-    
-    // Clear file input
-    event.target.value = ''
-    
-    console.log('Image uploaded successfully:', result)
-  } catch (err) {
-    uploadError.value = 'Failed to upload image: ' + (err.response?.data?.error || err.message)
-    console.error('Error uploading image:', err)
-  } finally {
-    uploading.value = false
-  }
-}
-
-const removeImage = async (index) => {
-  const imageUrl = characterImages.value[index]
-  
-  // Try to delete from storage (don't fail if it doesn't exist)
-  try {
-    await storageService.deleteFile(imageUrl)
-  } catch (err) {
-    console.warn('Could not delete image from storage:', err)
-  }
-  
-  // Remove from array
-  characterImages.value.splice(index, 1)
-  editedCharacter.value.images = [...characterImages.value]
-}
-
-const getImageUrl = (filename) => {
-  // If it's already a full URL, return it
-  if (filename.startsWith('http://') || filename.startsWith('https://')) {
-    return filename
-  }
-  // Otherwise, get URL from storage service
-  return storageService.getFileUrl(filename)
-}
-
-onMounted(() => {
-  loadCharacter()
-})
+const {
+  character,
+  editedCharacter,
+  loading,
+  error,
+  saving,
+  saveMessage,
+  saveSuccess,
+  uploading,
+  uploadError,
+  characterImages,
+  skills,
+  stunts,
+  consequences,
+  saveCharacter,
+  addSkill,
+  removeSkill,
+  addSkillLevel,
+  removeSkillLevel,
+  updateSkillLevel,
+  getSkillLevelDescription,
+  sortedSkills,
+  addStunt,
+  removeStunt,
+  addConsequence,
+  removeConsequence,
+  addStressBox,
+  removeStressBox,
+  addStressType,
+  removeStressType,
+  updateStressTypeName,
+  addAspect,
+  removeAspect,
+  handleFileSelect,
+  removeImage,
+  getImageUrl,
+  goBack,
+  activeTab
+} = useCharacterDetail()
 </script>
-
-<style scoped>
-.character-detail {
-  width: 100%;
-}
-
-.loading, .error {
-  text-align: center;
-  padding: 2rem;
-  font-size: 1.1rem;
-}
-
-.error {
-  color: #e74c3c;
-}
-
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2rem;
-}
-
-.back-btn, .save-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-}
-
-.back-btn {
-  background-color: #95a5a6;
-  color: white;
-}
-
-.back-btn:hover {
-  background-color: #7f8c8d;
-}
-
-.save-btn {
-  background-color: #27ae60;
-  color: white;
-}
-
-.save-btn:hover:not(:disabled) {
-  background-color: #229954;
-}
-
-.save-btn:disabled {
-  background-color: #bdc3c7;
-  cursor: not-allowed;
-}
-
-.character-form {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.form-input, .form-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-family: inherit;
-}
-
-.form-input:focus, .form-textarea:focus {
-  outline: none;
-  border-color: #3498db;
-}
-
-.form-section {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #eee;
-}
-
-.form-section h3 {
-  margin-bottom: 1rem;
-  color: #2c3e50;
-}
-
-.stunt-item {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  align-items: flex-start;
-}
-
-.stunt-item .form-textarea {
-  flex: 1;
-}
-
-.remove-btn {
-  padding: 0.5rem 1rem;
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.remove-btn:hover {
-  background-color: #c0392b;
-}
-
-.add-btn {
-  padding: 0.5rem 1rem;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.add-btn:hover {
-  background-color: #2980b9;
-}
-
-.save-message {
-  margin-top: 1rem;
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-}
-
-.save-message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.save-message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.images-section {
-  margin-top: 1rem;
-}
-
-.image-upload-area {
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.upload-btn {
-  padding: 0.75rem 1.5rem;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-}
-
-.upload-btn:hover:not(:disabled) {
-  background-color: #2980b9;
-}
-
-.upload-btn:disabled {
-  background-color: #bdc3c7;
-  cursor: not-allowed;
-}
-
-.upload-error {
-  color: #e74c3c;
-  font-size: 0.9rem;
-}
-
-.images-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.image-item {
-  position: relative;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #f8f9fa;
-}
-
-.character-image {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  display: block;
-}
-
-.remove-image-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  width: 2rem;
-  height: 2rem;
-  background-color: rgba(231, 76, 60, 0.9);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.5rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.remove-image-btn:hover {
-  background-color: rgba(192, 57, 43, 1);
-}
-
-.no-images {
-  color: #7f8c8d;
-  font-style: italic;
-  text-align: center;
-  padding: 2rem;
-}
-</style>
-

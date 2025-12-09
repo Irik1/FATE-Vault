@@ -19,19 +19,23 @@ const (
 )
 
 type Character struct {
-	ID          string   `json:"_id"`
-	Edition     Edition  `json:"edition"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Images      []string `json:"images"`
+	ID          string   `json:"_id" bson:"_id"`
+	Edition     Edition  `json:"edition" bson:"edition"`
+	Name        string   `json:"name" bson:"name"`
+	Description string   `json:"description" bson:"description"`
+	Images      []string `json:"images" bson:"images"`
+	Notes       string   `json:"notes" bson:"notes"`
 
-	Aspects      interface{} `json:"aspects"`
-	Skills       interface{} `json:"skills"`
-	Refresh      int         `json:"refresh"`
-	Extras       string      `json:"extras"`
-	Stunts       []string    `json:"stunts"`
-	Stress       interface{} `json:"stress"`
-	Consequences interface{} `json:"consequences"`
+	Aspects      interface{}       `json:"aspects" bson:"aspects"`
+	Skills       interface{}       `json:"skills" bson:"skills"`
+	Refresh      int               `json:"refresh" bson:"refresh"`
+	Extras       string            `json:"extras" bson:"extras"`
+	Stunts       map[string]string `json:"stunts" bson:"stunts"`
+	Stress       interface{}       `json:"stress" bson:"stress"`
+	Consequences interface{}       `json:"consequences" bson:"consequences"`
+
+	CreatedAt time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 }
 
 func charactersList(c *gin.Context) {
