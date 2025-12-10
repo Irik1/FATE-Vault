@@ -496,6 +496,25 @@
   background-color: #f8f9fa;
 }
 
+/* Draggable row styles */
+.draggable-row {
+  cursor: move;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.draggable-row[draggable="true"]:hover {
+  background-color: #e3f2fd;
+}
+
+.draggable-row.drag-over {
+  background-color: #bbdefb;
+  border-top: 2px solid #2196f3;
+}
+
+.draggable-row:active {
+  opacity: 0.5;
+}
+
 .data-table input, .data-table textarea, .data-table select {
   width: 100%;
   padding: 0.35rem;
@@ -710,6 +729,11 @@
   outline: 2px solid #3498db;
   border-radius: 2px;
   background: white;
+}
+
+.stress-box-size-input.locked-input {
+  pointer-events: none;
+  cursor: pointer;
 }
 
 /* Images Section */

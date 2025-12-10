@@ -1,4 +1,4 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch, onUpdated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { characterService } from '../services/api'
 import { storageService } from '../services/storage'
@@ -20,12 +20,15 @@ export function useCharacterDetail() {
 
   // Skills management - array of skill groups (allows duplicate levels)
   const skills = ref([])
-  
+
+  // Aspects management - now always an array
+  const aspects = ref([])
+
   // Stunts management
   const stunts = ref([])
-  
-  // Consequences management - object with keys like minor, moderate, severe
-  const consequences = ref({})
+
+  // Consequences management - now always an array
+  const consequences = ref([])
   const activeTab = ref('main')
   const isLocked = ref(false)
 
@@ -38,108 +41,104 @@ export function useCharacterDetail() {
       if (found) {
         character.value = found
         editedCharacter.value = JSON.parse(JSON.stringify(found))
-        
-        // Initialize aspects if they don't exist
-        if (!editedCharacter.value.aspects) {
-          editedCharacter.value.aspects = {
-            highConcept: '',
-            trouble: '',
-            others: []
+
+        // --- NEW: assume aspects is always an array of {type, value} ---
+        if (Array.isArray(editedCharacter.value.aspects)) {
+          aspects.value = editedCharacter.value.aspects.map((a, i) => ({
+            id: a.id ?? i,
+            type: a.type || '',
+            value: a.value || ''
+          }))
+        } else if (editedCharacter.value.aspects && typeof editedCharacter.value.aspects === 'object') {
+          // Convert old format to new array format for backward compatibility
+          const oldAspects = editedCharacter.value.aspects
+          aspects.value = []
+          
+          if (oldAspects.highConcept) {
+            aspects.value.push({
+              id: 0,
+              type: 'High Concept',
+              value: oldAspects.highConcept
+            })
           }
-        } else if (!editedCharacter.value.aspects.others) {
-          editedCharacter.value.aspects.others = []
-        }
-        
-        // Initialize stress if it doesn't exist
-        if (!editedCharacter.value.stress) {
-          editedCharacter.value.stress = {
-            physical: { boxes: [] },
-            mental: { boxes: [] }
+          if (oldAspects.trouble) {
+            aspects.value.push({
+              id: 1,
+              type: 'Trouble',
+              value: oldAspects.trouble
+            })
+          }
+          if (Array.isArray(oldAspects.others)) {
+            oldAspects.others.forEach((other, idx) => {
+              if (other) {
+                aspects.value.push({
+                  id: aspects.value.length,
+                  type: 'Other',
+                  value: other
+                })
+              }
+            })
           }
         } else {
-          if (!editedCharacter.value.stress.physical) {
-            editedCharacter.value.stress.physical = { boxes: [] }
-          } else if (editedCharacter.value.stress.physical.boxes) {
-            // Convert old format (with current) to new format (with isFilled)
-            editedCharacter.value.stress.physical.boxes = editedCharacter.value.stress.physical.boxes.map(box => {
-              if ('current' in box && !('isFilled' in box)) {
-                return { size: box.size, isFilled: box.current > 0 }
-              }
-              return box
-            })
-          }
-          if (!editedCharacter.value.stress.mental) {
-            editedCharacter.value.stress.mental = { boxes: [] }
-          } else if (editedCharacter.value.stress.mental.boxes) {
-            // Convert old format (with current) to new format (with isFilled)
-            editedCharacter.value.stress.mental.boxes = editedCharacter.value.stress.mental.boxes.map(box => {
-              if ('current' in box && !('isFilled' in box)) {
-                return { size: box.size, isFilled: box.current > 0 }
-              }
-              return box
-            })
-          }
+          aspects.value = []
         }
         
-        // Initialize skills - convert from object to array format (allows duplicate levels)
-        if (editedCharacter.value.skills && typeof editedCharacter.value.skills === 'object' && !Array.isArray(editedCharacter.value.skills)) {
-          skills.value = []
-          let idCounter = 0
-          Object.entries(editedCharacter.value.skills).forEach(([level, skillList]) => {
-            skills.value.push({
-              id: idCounter++,
-              level: level,
-              skills: Array.isArray(skillList) ? [...skillList] : []
-            })
+        // --- NEW: assume stress is always an array of {type, boxes} ---
+        if (!Array.isArray(editedCharacter.value.stress)) {
+          // default array if absent or wrong type
+          editedCharacter.value.stress = [
+            { type: 'physical', boxes: [] },
+            { type: 'mental', boxes: [] }
+          ]
+        } else {
+          // normalize boxes entries (ensure isFilled property exists)
+          editedCharacter.value.stress = editedCharacter.value.stress.map(s => {
+            return {
+              type: s.type || 'unknown',
+              boxes: Array.isArray(s.boxes)
+                ? s.boxes.map(box => {
+                  if ('current' in box && !('isFilled' in box)) {
+                    return { size: box.size, isFilled: box.current > 0 }
+                  }
+                  return box
+                })
+                : []
+            }
           })
-        } else if (Array.isArray(editedCharacter.value.skills)) {
+        }
+        
+        // --- NEW: assume skills is already an array of groups ---
+        if (Array.isArray(editedCharacter.value.skills)) {
           skills.value = editedCharacter.value.skills.map((group, index) => ({
-            id: group.id || index,
-            level: group.level || '+0',
-            skills: group.skills || []
+            id: group.id ?? index,
+            level: group.level ?? '+0',
+            skills: Array.isArray(group.skills) ? [...group.skills] : []
           }))
         } else {
+          // fallback empty array
           skills.value = []
         }
         
-        // Initialize stunts
+        // --- NEW: assume stunts is always an array of {name,description} ---
         if (Array.isArray(editedCharacter.value.stunts)) {
-          stunts.value = editedCharacter.value.stunts.map((stunt, index) => ({
-            id: index,
-            name: typeof stunt === 'string' ? '' : Object.keys(stunt)[0] || '',
-            description: typeof stunt === 'string' ? stunt : Object.values(stunt)[0] || ''
-          }))
-        } else if (editedCharacter.value.stunts && typeof editedCharacter.value.stunts === 'object') {
-          stunts.value = Object.entries(editedCharacter.value.stunts).map(([name, description], index) => ({
-            id: index,
-            name,
-            description: typeof description === 'string' ? description : ''
+          stunts.value = editedCharacter.value.stunts.map((s, i) => ({
+            id: i,
+            name: s.name || '',
+            description: s.description || ''
           }))
         } else {
           stunts.value = []
         }
         
-        // Initialize consequences - convert from object format to array format
-        if (editedCharacter.value.consequences && typeof editedCharacter.value.consequences === 'object' && !Array.isArray(editedCharacter.value.consequences)) {
-          // Convert object format (minor/moderate/severe) to array format
-          consequences.value = []
-          Object.entries(editedCharacter.value.consequences).forEach(([type, data], index) => {
-            consequences.value.push({
-              id: index,
-              type: type,
-              size: data.size || 2,
-              description: data.description || '',
-              status: data.status || 'none'
-            })
-          })
-        } else if (Array.isArray(editedCharacter.value.consequences)) {
-          consequences.value = editedCharacter.value.consequences.map((consequence, index) => ({
-            id: index,
-            type: consequence.type || 'minor',
-            size: consequence.size || 2,
-            description: consequence.description || '',
-            status: consequence.status || 'none',
-            ...consequence
+        // --- NEW: consequences expected as array already ---
+        if (Array.isArray(editedCharacter.value.consequences)) {
+          consequences.value = editedCharacter.value.consequences.map((c, i) => ({
+            id: c.id ?? i,
+            type: c.type || 'minor',
+            size: c.size || 2,
+            description: c.description || '',
+            status: c.status || 'none',
+            ...c
           }))
         } else {
           consequences.value = []
@@ -174,6 +173,9 @@ export function useCharacterDetail() {
             max: 3
           }
         }
+
+        // Initialize locked mode based on playMode
+        isLocked.value = editedCharacter.value.playMode === true
       } else {
         error.value = 'Character not found'
       }
@@ -182,55 +184,55 @@ export function useCharacterDetail() {
       console.error('Error loading character:', err)
     } finally {
       loading.value = false
+      // Resize stunt textareas after loading is complete and DOM is updated
+      nextTick(() => {
+        resizeAllStuntTextareas()
+      })
     }
   }
 
   const saveCharacter = async () => {
     saving.value = true
     saveMessage.value = ''
-    
+
     try {
-      // Convert skills array back to object format (group by level, merge duplicates)
-      const skillsObj = {}
-      skills.value.forEach(group => {
-        if (group.level && Array.isArray(group.skills)) {
-          if (!skillsObj[group.level]) {
-            skillsObj[group.level] = []
-          }
-          group.skills.forEach(skill => {
-            if (skill && skill.trim()) {
-              skillsObj[group.level].push(skill)
-            }
-          })
-        }
-      })
-      editedCharacter.value.skills = skillsObj
-      
-      // Convert stunts array back to object format
-      const stuntsObj = {}
-      stunts.value.forEach(stunt => {
-        if (stunt.name && stunt.description) {
-          stuntsObj[stunt.name] = stunt.description
-        }
-      })
-      editedCharacter.value.stunts = stuntsObj
-      
-      // Save consequences - convert array to object format for backward compatibility
-      const consequencesObj = {}
-      consequences.value.forEach((consequence) => {
-        if (consequence.type) {
-          consequencesObj[consequence.type] = {
-            size: consequence.size || 2,
-            description: consequence.description || '',
-            status: consequence.status || 'none'
-          }
-        }
-      })
-      editedCharacter.value.consequences = consequencesObj
-      
+      // --- NEW: persist skills as an array (no conversion to object) ---
+      editedCharacter.value.skills = skills.value.map(group => ({
+        level: group.level,
+        skills: Array.isArray(group.skills) ? group.skills.filter(s => typeof s === 'string' && s.trim()) : []
+      }))
+
+      // --- NEW: persist aspects as an array of {type, value} ---
+      editedCharacter.value.aspects = aspects.value.map(a => ({
+        type: a.type || '',
+        value: a.value || ''
+      }))
+
+      // --- NEW: persist stunts as an array of {name,description} ---
+      editedCharacter.value.stunts = stunts.value.map(s => ({
+        name: s.name || '',
+        description: s.description || ''
+      }))
+
+      // consequences is already an array; persist the cleaned version
+      editedCharacter.value.consequences = consequences.value.map(c => ({
+        type: c.type || 'minor',
+        size: c.size || 2,
+        description: c.description || '',
+        status: c.status || 'none'
+      }))
+
       // Save images
       editedCharacter.value.images = characterImages.value
-      
+
+      // Ensure stress stays as array
+      if (!Array.isArray(editedCharacter.value.stress)) {
+        editedCharacter.value.stress = [
+          { type: 'physical', boxes: [] },
+          { type: 'mental', boxes: [] }
+        ]
+      }
+
       // Save character
       await characterService.updateCharacter(route.params.id, editedCharacter.value)
       
@@ -332,19 +334,23 @@ export function useCharacterDetail() {
       ? Math.max(...stunts.value.map(s => s.id)) + 1 
       : 0
     stunts.value.push({ id: newId, name: '', description: '' })
+    // Resize textareas after adding new stunt
+    nextTick(() => {
+      resizeAllStuntTextareas()
+    })
   }
 
   const removeStunt = (index) => {
     stunts.value.splice(index, 1)
   }
 
-  // Consequences management - array of consequences with editable type
+  // Consequences management (array)
   const addConsequence = () => {
-    const newId = consequences.value.length > 0 
-      ? Math.max(...consequences.value.map(c => c.id || 0)) + 1 
+    const newId = consequences.value.length > 0
+      ? Math.max(...consequences.value.map(c => c.id || 0)) + 1
       : 0
-    consequences.value.push({ 
-      id: newId, 
+    consequences.value.push({
+      id: newId,
       type: 'minor',
       size: 2,
       description: '',
@@ -356,63 +362,135 @@ export function useCharacterDetail() {
     consequences.value.splice(index, 1)
   }
 
-  // Stress management
-  const addStressBox = (stressType) => {
-    if (!editedCharacter.value.stress) {
-      editedCharacter.value.stress = {}
+  // Stress management (array of {type, boxes})
+  const addStressBox = (stressIndex) => {
+    if (!editedCharacter.value.stress) editedCharacter.value.stress = []
+    const s = editedCharacter.value.stress[stressIndex]
+    if (s) {
+      s.boxes = s.boxes || []
+      s.boxes.push({ size: 1, isFilled: false })
+    } else {
+      editedCharacter.value.stress.push({ type: 'new', boxes: [{ size: 1, isFilled: false }] })
     }
-    if (!editedCharacter.value.stress[stressType]) {
-      editedCharacter.value.stress[stressType] = { boxes: [] }
-    }
-    editedCharacter.value.stress[stressType].boxes.push({
-      size: 1,
-      isFilled: false
-    })
   }
 
-  const removeStressBox = (stressType, index) => {
-    if (editedCharacter.value.stress && editedCharacter.value.stress[stressType] && editedCharacter.value.stress[stressType].boxes) {
-      editedCharacter.value.stress[stressType].boxes.splice(index, 1)
-    }
+  const removeStressBox = (stressIndex, boxIndex) => {
+    const s = editedCharacter.value.stress && editedCharacter.value.stress[stressIndex]
+    if (s && Array.isArray(s.boxes)) s.boxes.splice(boxIndex, 1)
   }
 
   const addStressType = () => {
-    if (!editedCharacter.value.stress) {
-      editedCharacter.value.stress = {}
-    }
-    const newType = 'new'
-    editedCharacter.value.stress[newType] = { boxes: [] }
+    if (!editedCharacter.value.stress) editedCharacter.value.stress = []
+    let base = 'new'
+    let idx = 1
+    while (editedCharacter.value.stress.find(s => s.type === base + (idx === 1 ? '' : idx))) idx++
+    const name = base + (idx === 1 ? '' : idx)
+    editedCharacter.value.stress.push({ type: name, boxes: [] })
   }
 
-  const removeStressType = (stressType) => {
-    if (editedCharacter.value.stress && editedCharacter.value.stress[stressType]) {
-      delete editedCharacter.value.stress[stressType]
-    }
-  }
-
-  const updateStressTypeName = (oldType, newType) => {
-    if (oldType === newType || !newType) return
-    if (editedCharacter.value.stress && editedCharacter.value.stress[oldType]) {
-      editedCharacter.value.stress[newType] = editedCharacter.value.stress[oldType]
-      delete editedCharacter.value.stress[oldType]
+  const removeStressType = (stressIndex) => {
+    if (editedCharacter.value.stress && editedCharacter.value.stress[stressIndex]) {
+      editedCharacter.value.stress.splice(stressIndex, 1)
     }
   }
 
-  // Aspects management
+  const updateStressTypeName = (stressIndex, newType) => {
+    if (!newType) return
+    const s = editedCharacter.value.stress && editedCharacter.value.stress[stressIndex]
+    if (!s) return
+    if (s.type === newType) return
+    const existing = editedCharacter.value.stress.find((st, i) => st.type === newType && i !== stressIndex)
+    if (existing) {
+      existing.boxes = [...(existing.boxes || []), ...(s.boxes || [])]
+      editedCharacter.value.stress.splice(stressIndex, 1)
+    } else {
+      s.type = newType
+    }
+  }
+
+  // Aspects management (array)
   const addAspect = () => {
-    if (!editedCharacter.value.aspects) {
-      editedCharacter.value.aspects = { highConcept: '', trouble: '', others: [] }
-    }
-    if (!editedCharacter.value.aspects.others) {
-      editedCharacter.value.aspects.others = []
-    }
-    editedCharacter.value.aspects.others.push('')
+    const newId = aspects.value.length > 0 
+      ? Math.max(...aspects.value.map(a => a.id || 0)) + 1 
+      : 0
+    aspects.value.push({ id: newId, type: '', value: '' })
   }
 
   const removeAspect = (index) => {
-    if (editedCharacter.value.aspects && editedCharacter.value.aspects.others) {
-      editedCharacter.value.aspects.others.splice(index, 1)
+    aspects.value.splice(index, 1)
+  }
+
+  // Drag and drop handlers for reordering
+  const draggedIndex = ref(null)
+  const draggedItemType = ref(null) // 'aspect', 'stunt', or 'consequence'
+
+  const handleDragStart = (event, index, itemType) => {
+    draggedIndex.value = index
+    draggedItemType.value = itemType
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/html', event.target)
+    const row = event.currentTarget
+    row.style.opacity = '0.5'
+  }
+
+  const handleDragEnd = (event) => {
+    const row = event.currentTarget
+    row.style.opacity = '1'
+    draggedIndex.value = null
+    draggedItemType.value = null
+  }
+
+  const handleDragOver = (event) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    
+    const targetRow = event.currentTarget
+    const allRows = Array.from(targetRow.closest('tbody').querySelectorAll('tr[draggable="true"]'))
+    const targetIndex = allRows.indexOf(targetRow)
+    
+    if (targetIndex === -1) return
+    
+    // Remove previous drag-over class from all rows
+    allRows.forEach(row => row.classList.remove('drag-over'))
+    
+    // Add drag-over class to target row
+    if (draggedIndex.value !== null && draggedIndex.value !== targetIndex) {
+      targetRow.classList.add('drag-over')
     }
+  }
+
+  const handleDragLeave = (event) => {
+    event.currentTarget.classList.remove('drag-over')
+  }
+
+  const handleDrop = (event, dropIndex, itemType) => {
+    event.preventDefault()
+    event.currentTarget.classList.remove('drag-over')
+    
+    if (draggedIndex.value === null || draggedItemType.value !== itemType) {
+      return
+    }
+    
+    const sourceIndex = draggedIndex.value
+    
+    if (sourceIndex === dropIndex) {
+      return
+    }
+    
+    // Reorder based on item type
+    if (itemType === 'aspect') {
+      const item = aspects.value.splice(sourceIndex, 1)[0]
+      aspects.value.splice(dropIndex, 0, item)
+    } else if (itemType === 'stunt') {
+      const item = stunts.value.splice(sourceIndex, 1)[0]
+      stunts.value.splice(dropIndex, 0, item)
+    } else if (itemType === 'consequence') {
+      const item = consequences.value.splice(sourceIndex, 1)[0]
+      consequences.value.splice(dropIndex, 0, item)
+    }
+    
+    draggedIndex.value = null
+    draggedItemType.value = null
   }
 
   // Image management
@@ -492,9 +570,54 @@ export function useCharacterDetail() {
     }
   }
 
+  const toggleLock = () => {
+    isLocked.value = !isLocked.value
+    // When unlocking, set playMode to false
+    // When locking, set playMode to true
+    editedCharacter.value.playMode = isLocked.value
+  }
+
+  // Auto-resize textarea based on content
+  const autoResizeTextarea = (event) => {
+    const textarea = event.target
+    textarea.style.height = 'auto'
+    textarea.style.height = textarea.scrollHeight + 'px'
+  }
+
+  // Resize all stunt textareas (used after loading)
+  const resizeAllStuntTextareas = () => {
+    // Use setTimeout with nextTick to ensure DOM is fully updated and rendered
+    nextTick(() => {
+      setTimeout(() => {
+        // Find all textareas - they should be in the stunts table
+        // We'll check all textareas and resize them
+        const allTextareas = document.querySelectorAll('textarea.form-textarea')
+        
+        allTextareas.forEach(textarea => {
+          // Only resize if it's in a table (stunts table)
+          if (textarea.closest('table.data-table')) {
+            // Reset height to auto to get accurate scrollHeight
+            textarea.style.height = 'auto'
+            const scrollHeight = textarea.scrollHeight
+            // Set minimum height to at least 2.5rem (40px) or scrollHeight, whichever is larger
+            const minHeight = 40 // 2.5rem in pixels
+            textarea.style.height = Math.max(scrollHeight, minHeight) + 'px'
+          }
+        })
+      }, 100) // Small delay to ensure rendering is complete
+    })
+  }
+
   onMounted(() => {
     loadCharacter()
   })
+
+  // Watch for stunts changes and resize textareas
+  watch(stunts, () => {
+    nextTick(() => {
+      resizeAllStuntTextareas()
+    })
+  }, { deep: true })
 
   return {
     character,
@@ -507,6 +630,7 @@ export function useCharacterDetail() {
     uploading,
     uploadError,
     characterImages,
+    aspects,
     skills,
     stunts,
     consequences,
@@ -535,7 +659,14 @@ export function useCharacterDetail() {
     getImageUrl,
     goBack,
     isLocked,
-    updateRefresh
+    updateRefresh,
+    toggleLock,
+    autoResizeTextarea,
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop
   }
 }
 

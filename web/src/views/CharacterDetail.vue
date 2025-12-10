@@ -6,7 +6,7 @@
       <div class="header-actions">
         <button @click="goBack" class="back-btn">← Back to Characters</button>
         <div class="header-right-actions">
-          <button @click="isLocked = !isLocked" class="lock-btn" :class="{ locked: isLocked }">
+          <button @click="toggleLock" class="lock-btn" :class="{ locked: isLocked }">
             {{ isLocked ? '🔒 Locked' : '🔓 Unlocked' }}
           </button>
           <button @click="saveCharacter" class="save-btn" :disabled="saving">
@@ -102,45 +102,48 @@
         <!-- Aspects -->
         <div class="form-section">
           <h2 class="section-header">Aspects</h2>
-            <div class="form-group">
-              <label>High Concept</label>
-              <input
-                v-model="editedCharacter.aspects.highConcept"
-                type="text"
-                class="form-input"
-                placeholder="High Concept"
-                :disabled="isLocked"
-              />
-            </div>
-            <div class="form-group">
-              <label>Trouble</label>
-              <input
-                v-model="editedCharacter.aspects.trouble"
-                type="text"
-                class="form-input"
-                placeholder="Trouble"
-                :disabled="isLocked"
-              />
-            </div>
-          <div class="form-group">
-            <label>Other Aspects</label>
-            <div v-for="(aspect, index) in (editedCharacter.aspects.others || [])" :key="index" class="form-group" style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem; align-items: center;">
-              <input
-                v-model="editedCharacter.aspects.others[index]"
-                type="text"
-                class="form-input"
-                :placeholder="`Aspect ${index + 1}`"
-                style="flex: 1;"
-                :disabled="isLocked"
-              />
-              <button v-if="!isLocked" @click="removeAspect(index)" class="btn-icon btn-remove" title="Remove aspect">
-                ×
-              </button>
-            </div>
-            <button v-if="!isLocked" @click="addAspect" class="add-btn" style="margin-top: 0.5rem;">
-              + Add Aspect
-            </button>
-          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 200px;">Type</th>
+                <th>Value</th>
+                <th style="width: 80px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="(aspect, index) in aspects" 
+                :key="aspect.id || index"
+                draggable="true"
+                @dragstart="(e) => handleDragStart(e, index, 'aspect')"
+                @dragend="handleDragEnd"
+                @dragover="handleDragOver"
+                @dragleave="handleDragLeave"
+                @drop="(e) => handleDrop(e, index, 'aspect')"
+                class="draggable-row"
+              >
+                <td>
+                  <input v-model="aspect.type" type="text" class="form-input" placeholder="Aspect type" :disabled="isLocked" />
+                </td>
+                <td>
+                  <input v-model="aspect.value" type="text" class="form-input" placeholder="Aspect value" :disabled="isLocked" />
+                </td>
+                <td>
+                  <div class="table-actions">
+                    <button v-if="!isLocked" @click="removeAspect(index)" class="btn-icon btn-remove" title="Remove aspect">
+                      ×
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="aspects.length === 0">
+                <td colspan="3" style="text-align: center; color: #6c757d; padding: 2rem;">
+                  No aspects added yet
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <button v-if="!isLocked" @click="addAspect" class="add-btn">+ Add Aspect</button>
         </div>
 
         <!-- Skills -->
@@ -194,12 +197,30 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(stunt, index) in stunts" :key="stunt.id">
+              <tr 
+                v-for="(stunt, index) in stunts" 
+                :key="stunt.id"
+                draggable="true"
+                @dragstart="(e) => handleDragStart(e, index, 'stunt')"
+                @dragend="handleDragEnd"
+                @dragover="handleDragOver"
+                @dragleave="handleDragLeave"
+                @drop="(e) => handleDrop(e, index, 'stunt')"
+                class="draggable-row"
+              >
                 <td>
                   <input v-model="stunt.name" type="text" class="form-input" placeholder="Stunt name" :disabled="isLocked" />
                 </td>
                 <td>
-                  <textarea v-model="stunt.description" class="form-textarea" rows="2" placeholder="Stunt description" :disabled="isLocked"></textarea>
+                  <textarea 
+                    v-model="stunt.description" 
+                    class="form-textarea" 
+                    rows="2" 
+                    placeholder="Stunt description" 
+                    :disabled="isLocked"
+                    @input="autoResizeTextarea"
+                    style="resize: none; overflow: hidden; min-height: 2.5rem;"
+                  ></textarea>
                 </td>
                 <td>
                   <div class="table-actions">
@@ -223,53 +244,55 @@
         <div class="form-section">
           <h2 class="section-header">Stress</h2>
           <div class="stress-line">
-            <div v-for="(stressData, stressType) in editedCharacter.stress" :key="stressType" class="stress-type-line">
+            <div v-for="(stressData, idx) in (editedCharacter.stress || [])" :key="stressData.type || idx" class="stress-type-line">
               <div class="stress-type-header">
                 <input
-                  :value="stressType"
+                  :value="stressData.type"
                   type="text"
                   class="form-input stress-type-input"
-                  @blur="(e) => updateStressTypeName(stressType, e.target.value)"
+                  @blur="(e) => updateStressTypeName(idx, e.target.value)"
                   :disabled="isLocked"
                 />
-                <button v-if="!isLocked" @click="removeStressType(stressType)" class="btn-icon btn-remove" title="Remove stress type">
+                <button v-if="!isLocked" @click="removeStressType(idx)" class="btn-icon btn-remove" title="Remove stress type">
                   ×
                 </button>
               </div>
               <div class="stress-boxes-line">
-                <div v-for="(box, index) in stressData.boxes || []" :key="index" class="stress-box-checkbox">
+                <div v-for="(box, boxIndex) in (stressData.boxes || [])" :key="boxIndex" class="stress-box-checkbox">
                   <input
                     type="checkbox"
                     v-model="box.isFilled"
-                    :id="`${stressType}-${index}`"
+                    :id="`${stressData.type}-${boxIndex}`"
                     class="stress-checkbox"
                   />
-                  <label :for="`${stressType}-${index}`" class="stress-box-label">
+                  <label :for="`${stressData.type}-${boxIndex}`" class="stress-box-label">
                     <input
                       v-model.number="box.size"
                       type="number"
                       min="1"
                       class="stress-box-size-input"
-                      @click.stop
+                      :class="{ 'locked-input': isLocked }"
+                      @click="!isLocked && $event.stopPropagation()"
                       :disabled="isLocked"
                     />
                   </label>
                   <button 
-                    v-if="!isLocked && index === (stressData.boxes || []).length - 1" 
-                    @click="removeStressBox(stressType, index)" 
+                    v-if="!isLocked && boxIndex === (stressData.boxes || []).length - 1" 
+                    @click="removeStressBox(idx, boxIndex)" 
                     class="btn-icon btn-remove stress-box-remove" 
                     title="Remove box"
                   >
                     ×
                   </button>
                 </div>
-                <button v-if="!isLocked" @click="addStressBox(stressType)" class="add-btn-small">+</button>
+                <button v-if="!isLocked" @click="addStressBox(idx)" class="add-btn-small">+</button>
               </div>
             </div>
+
+            <button v-if="!isLocked" @click="addStressType" class="add-btn" style="margin-top: 0.5rem;">
+              + Add Stress Type
+            </button>
           </div>
-          <button v-if="!isLocked" @click="addStressType" class="add-btn" style="margin-top: 0.5rem;">
-            + Add Stress Type
-          </button>
         </div>
 
         <!-- Consequences -->
@@ -278,60 +301,97 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width: 100px;">Type</th>
-                <th style="width: 70px;">Size</th>
-                <th>Description</th>
-                <th style="width: 110px;">Status</th>
-                <th style="width: 60px;">Actions</th>
+                <template v-if="isLocked">
+                  <th style="width: 150px;">Type</th>
+                  <th>Description</th>
+                  <th style="width: 110px;">Status</th>
+                </template>
+                <template v-else>
+                  <th style="width: 100px;">Type</th>
+                  <th style="width: 70px;">Size</th>
+                  <th>Description</th>
+                  <th style="width: 110px;">Status</th>
+                  <th style="width: 60px;">Actions</th>
+                </template>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(consequence, index) in consequences" :key="consequence.id || index">
-                <td>
-                  <input
-                    v-model="consequence.type"
-                    type="text"
-                    class="form-input"
-                    placeholder="Type"
-                    :disabled="isLocked"
-                  />
-                </td>
-                <td>
-                  <input 
-                    v-model.number="consequence.size" 
-                    type="number" 
-                    class="form-input consequence-size-input"
-                    min="1"
-                    max="9"
-                    style="width: 60px;"
-                    :disabled="isLocked"
-                  />
-                </td>
-                <td>
-                  <input 
-                    v-model="consequence.description" 
-                    type="text" 
-                    class="form-input" 
-                    placeholder="Consequence description"
-                  />
-                </td>
-                <td>
-                  <select v-model="consequence.status" class="form-select consequence-status-select" style="width: 100px;">
-                    <option value="none">None</option>
-                    <option value="active">Active</option>
-                    <option value="healed">Healed</option>
-                  </select>
-                </td>
-                <td>
-                  <div class="table-actions">
-                    <button v-if="!isLocked" @click="removeConsequence(index)" class="btn-icon btn-remove" title="Remove consequence">
-                      ×
-                    </button>
-                  </div>
-                </td>
+              <tr 
+                v-for="(consequence, index) in consequences" 
+                :key="consequence.id || index"
+                draggable="true"
+                @dragstart="(e) => handleDragStart(e, index, 'consequence')"
+                @dragend="handleDragEnd"
+                @dragover="handleDragOver"
+                @dragleave="handleDragLeave"
+                @drop="(e) => handleDrop(e, index, 'consequence')"
+                class="draggable-row"
+              >
+                <template v-if="isLocked">
+                  <td>
+                    {{ consequence.type }} (-{{ consequence.size }})
+                  </td>
+                  <td>
+                    <input 
+                      v-model="consequence.description" 
+                      type="text" 
+                      class="form-input" 
+                      placeholder="Consequence description"
+                    />
+                  </td>
+                  <td>
+                    <select v-model="consequence.status" class="form-select consequence-status-select" style="width: 100px;">
+                      <option value="none">None</option>
+                      <option value="active">Active</option>
+                      <option value="healed">Healed</option>
+                    </select>
+                  </td>
+                </template>
+                <template v-else>
+                  <td>
+                    <input
+                      v-model="consequence.type"
+                      type="text"
+                      class="form-input"
+                      placeholder="Type"
+                    />
+                  </td>
+                  <td>
+                    <input 
+                      v-model.number="consequence.size" 
+                      type="number" 
+                      class="form-input consequence-size-input"
+                      min="1"
+                      max="9"
+                      style="width: 60px;"
+                    />
+                  </td>
+                  <td>
+                    <input 
+                      v-model="consequence.description" 
+                      type="text" 
+                      class="form-input" 
+                      placeholder="Consequence description"
+                    />
+                  </td>
+                  <td>
+                    <select v-model="consequence.status" class="form-select consequence-status-select" style="width: 100px;">
+                      <option value="none">None</option>
+                      <option value="active">Active</option>
+                      <option value="healed">Healed</option>
+                    </select>
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <button @click="removeConsequence(index)" class="btn-icon btn-remove" title="Remove consequence">
+                        ×
+                      </button>
+                    </div>
+                  </td>
+                </template>
               </tr>
               <tr v-if="consequences.length === 0">
-                <td colspan="5" style="text-align: center; color: #6c757d; padding: 2rem;">
+                <td :colspan="isLocked ? 3 : 5" style="text-align: center; color: #6c757d; padding: 2rem;">
                   No consequences added yet
                 </td>
               </tr>
@@ -386,6 +446,7 @@ const {
   uploading,
   uploadError,
   characterImages,
+  aspects,
   skills,
   stunts,
   consequences,
@@ -414,6 +475,13 @@ const {
   goBack,
   activeTab,
   isLocked,
-  updateRefresh
+  updateRefresh,
+  toggleLock,
+  autoResizeTextarea,
+  handleDragStart,
+  handleDragEnd,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop
 } = useCharacterDetail()
 </script>

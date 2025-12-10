@@ -9,35 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-type Edition string
-
-const (
-	Core        Edition = "core"
-	Accelerated Edition = "accelerated"
-	Condensed   Edition = "condensed"
-	Custom      Edition = "custom"
-)
-
-type Character struct {
-	ID          string   `json:"_id" bson:"_id"`
-	Edition     Edition  `json:"edition" bson:"edition"`
-	Name        string   `json:"name" bson:"name"`
-	Description string   `json:"description" bson:"description"`
-	Images      []string `json:"images" bson:"images"`
-	Notes       string   `json:"notes" bson:"notes"`
-
-	Aspects      interface{}       `json:"aspects" bson:"aspects"`
-	Skills       interface{}       `json:"skills" bson:"skills"`
-	Refresh      interface{}       `json:"refresh" bson:"refresh"`
-	Extras       string            `json:"extras" bson:"extras"`
-	Stunts       map[string]string `json:"stunts" bson:"stunts"`
-	Stress       interface{}       `json:"stress" bson:"stress"`
-	Consequences interface{}       `json:"consequences" bson:"consequences"`
-
-	CreatedAt time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
-	UpdatedAt time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
-}
-
 func charactersList(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
