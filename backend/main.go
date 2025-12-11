@@ -69,7 +69,10 @@ func main() {
 		c.Next()
 	})
 
-	router.GET("/charactersList", charactersList)
+	router.GET("/characters/list", charactersList)
+	router.POST("/characters/create", createCharacter)
+	router.POST("/characters/update/:id", updateCharacter)
+	router.DELETE("/characters/delete/:id", deleteCharacter)
 
 	router.Run("localhost:8080")
 }
