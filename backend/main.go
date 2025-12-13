@@ -73,6 +73,7 @@ func main() {
 	router.POST("/characters/create", createCharacter)
 	router.POST("/characters/update/:id", updateCharacter)
 	router.DELETE("/characters/delete/:id", deleteCharacter)
+	router.GET("/templates", getTemplates)
 
 	router.Run("localhost:8080")
 }

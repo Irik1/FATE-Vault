@@ -31,11 +31,133 @@ export function useCharacterDetail() {
   const consequences = ref([])
   const activeTab = ref('main')
   const isLocked = ref(false)
+  
+  // Check if we're in creation mode
+  const isCreating = computed(() => route.path === '/characters/new' || route.name === 'CharacterNew')
 
   const loadCharacter = async () => {
     loading.value = true
     error.value = null
     try {
+      // If creating, load template data
+      if (isCreating.value) {
+        const edition = route.query.edition || 'core'
+        
+        // Fetch templates from API
+        let templatesData = []
+        try {
+          templatesData = await characterService.getTemplates()
+        } catch (err) {
+          console.error('Error loading templates:', err)
+          error.value = 'Failed to load templates. Please make sure the backend is running.'
+          loading.value = false
+          return
+        }
+        
+        const template = templatesData.find(t => t.edition === edition) || templatesData[0]
+        
+        if (!template) {
+          error.value = `Template for edition "${edition}" not found`
+          loading.value = false
+          return
+        }
+        
+        // Deep clone the template
+        character.value = null
+        editedCharacter.value = JSON.parse(JSON.stringify(template))
+        
+        // Initialize all the reactive arrays from template
+        if (Array.isArray(editedCharacter.value.aspects)) {
+          aspects.value = editedCharacter.value.aspects.map((a, i) => ({
+            id: a.id ?? i,
+            type: a.type || '',
+            value: a.value || ''
+          }))
+        } else {
+          aspects.value = []
+        }
+        
+        if (Array.isArray(editedCharacter.value.stress)) {
+          editedCharacter.value.stress = editedCharacter.value.stress.map(s => ({
+            type: s.type || 'unknown',
+            boxes: Array.isArray(s.boxes)
+              ? s.boxes.map(box => ({
+                size: box.size || 1,
+                isFilled: box.isFilled || false
+              }))
+              : []
+          }))
+        } else {
+          editedCharacter.value.stress = [
+            { type: 'physical', boxes: [] },
+            { type: 'mental', boxes: [] }
+          ]
+        }
+        
+        if (Array.isArray(editedCharacter.value.skills)) {
+          skills.value = editedCharacter.value.skills.map((group, index) => ({
+            id: group.id ?? index,
+            level: group.level ?? '+0',
+            skills: Array.isArray(group.skills) ? [...group.skills] : []
+          }))
+        } else {
+          skills.value = []
+        }
+        
+        if (Array.isArray(editedCharacter.value.stunts)) {
+          stunts.value = editedCharacter.value.stunts.map((s, i) => ({
+            id: i,
+            name: s.name || '',
+            description: s.description || ''
+          }))
+        } else {
+          stunts.value = []
+        }
+        
+        if (Array.isArray(editedCharacter.value.consequences)) {
+          consequences.value = editedCharacter.value.consequences.map((c, i) => ({
+            id: c.id ?? i,
+            type: c.type || 'minor',
+            size: c.size || 2,
+            description: c.description || '',
+            status: c.status || 'none',
+            ...c
+          }))
+        } else {
+          consequences.value = []
+        }
+        
+        if (Array.isArray(editedCharacter.value.images)) {
+          characterImages.value = [...editedCharacter.value.images]
+        } else {
+          characterImages.value = []
+        }
+        
+        if (editedCharacter.value.refresh && typeof editedCharacter.value.refresh === 'object') {
+          if (typeof editedCharacter.value.refresh.current !== 'number') {
+            editedCharacter.value.refresh.current = editedCharacter.value.refresh.max || 3
+          }
+          if (typeof editedCharacter.value.refresh.max !== 'number') {
+            editedCharacter.value.refresh.max = editedCharacter.value.refresh.current || 3
+          }
+        } else if (typeof editedCharacter.value.refresh === 'number') {
+          editedCharacter.value.refresh = {
+            current: editedCharacter.value.refresh,
+            max: editedCharacter.value.refresh
+          }
+        } else {
+          editedCharacter.value.refresh = {
+            current: 3,
+            max: 3
+          }
+        }
+        
+        isLocked.value = false
+        loading.value = false
+        return
+      }
+      
+      // Otherwise, load existing character
       const data = await characterService.getCharacters()
       const found = data.find(c => (c._id || c.id) === route.params.id)
       if (found) {
@@ -233,17 +355,36 @@ export function useCharacterDetail() {
         ]
       }
 
-      // Save character
-      await characterService.updateCharacter(route.params.id, editedCharacter.value)
-      
-      saveMessage.value = 'Character saved successfully!'
-      saveSuccess.value = true
-      
-      setTimeout(() => {
-        saveMessage.value = ''
-      }, 3000)
+      // Create or update character
+      if (isCreating.value) {
+        const created = await characterService.createCharacter(editedCharacter.value)
+        saveMessage.value = 'Character created successfully!'
+        saveSuccess.value = true
+        
+        // Navigate to the new character's detail page
+        const characterId = created._id || created.id
+        if (characterId) {
+          setTimeout(() => {
+            router.push(`/characters/${characterId}`)
+          }, 1000)
+        } else {
+          setTimeout(() => {
+            router.push('/characters')
+          }, 2000)
+        }
+      } else {
+        await characterService.updateCharacter(route.params.id, editedCharacter.value)
+        saveMessage.value = 'Character saved successfully!'
+        saveSuccess.value = true
+        
+        setTimeout(() => {
+          saveMessage.value = ''
+        }, 3000)
+      }
     } catch (err) {
-      saveMessage.value = 'Failed to save character: ' + (err.response?.data?.error || err.message)
+      saveMessage.value = isCreating.value 
+        ? 'Failed to create character: ' + (err.response?.data?.error || err.message)
+        : 'Failed to save character: ' + (err.response?.data?.error || err.message)
       saveSuccess.value = false
       console.error('Error saving character:', err)
     } finally {
@@ -422,7 +563,9 @@ export function useCharacterDetail() {
 
   // Drag and drop handlers for reordering
   const draggedIndex = ref(null)
-  const draggedItemType = ref(null) // 'aspect', 'stunt', or 'consequence'
+  const draggedItemType = ref(null) // 'aspect', 'stunt', 'consequence', or 'skill'
+  const draggedSkillGroupId = ref(null)
+  const draggedSkillIndex = ref(null)
 
   const handleDragStart = (event, index, itemType) => {
     draggedIndex.value = index
@@ -490,6 +633,100 @@ export function useCharacterDetail() {
     }
     
     draggedIndex.value = null
+    draggedItemType.value = null
+  }
+
+  // Skill drag and drop handlers
+  const handleSkillDragStart = (event, groupId, skillIndex) => {
+    draggedSkillGroupId.value = groupId
+    draggedSkillIndex.value = skillIndex
+    draggedItemType.value = 'skill'
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/html', event.target)
+    const skillItem = event.currentTarget
+    skillItem.style.opacity = '0.5'
+  }
+
+  const handleSkillDragEnd = (event) => {
+    const skillItem = event.currentTarget
+    skillItem.style.opacity = '1'
+    draggedSkillGroupId.value = null
+    draggedSkillIndex.value = null
+    draggedItemType.value = null
+  }
+
+  const handleSkillDragOver = (event) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    
+    // Only handle drag over on the group container, not child elements
+    const targetGroup = event.currentTarget
+    if (!targetGroup.classList.contains('skill-list-compact')) {
+      return
+    }
+    
+    const allGroups = Array.from(document.querySelectorAll('.skill-list-compact'))
+    
+    // Remove previous drag-over class from all groups
+    allGroups.forEach(group => group.classList.remove('skill-drag-over'))
+    
+    // Add drag-over class to target group if it's different from source
+    if (draggedSkillGroupId.value !== null) {
+      const targetGroupId = targetGroup.dataset.groupId
+      // Compare as strings to handle both numeric and string IDs
+      if (String(draggedSkillGroupId.value) !== String(targetGroupId)) {
+        targetGroup.classList.add('skill-drag-over')
+      }
+    }
+  }
+
+  const handleSkillDragLeave = (event) => {
+    event.currentTarget.classList.remove('skill-drag-over')
+  }
+
+  const handleSkillDrop = (event, targetGroupId) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const dropTarget = event.currentTarget
+    dropTarget.classList.remove('skill-drag-over')
+    
+    if (draggedSkillGroupId.value === null || draggedSkillIndex.value === null) {
+      return
+    }
+    
+    const sourceGroupId = draggedSkillGroupId.value
+    const sourceSkillIndex = draggedSkillIndex.value
+    
+    // Don't do anything if dropping on the same group
+    if (String(sourceGroupId) === String(targetGroupId)) {
+      draggedSkillGroupId.value = null
+      draggedSkillIndex.value = null
+      draggedItemType.value = null
+      return
+    }
+    
+    // Find source and target groups
+    const sourceGroup = skills.value.find(g => String(g.id) === String(sourceGroupId))
+    const targetGroupData = skills.value.find(g => String(g.id) === String(targetGroupId))
+    
+    if (!sourceGroup || !targetGroupData) {
+      draggedSkillGroupId.value = null
+      draggedSkillIndex.value = null
+      draggedItemType.value = null
+      return
+    }
+    
+    // Move skill from source to target
+    const skill = sourceGroup.skills[sourceSkillIndex]
+    if (skill !== undefined) {
+      // Remove from source
+      sourceGroup.skills.splice(sourceSkillIndex, 1)
+      // Add to target
+      targetGroupData.skills.push(skill)
+    }
+    
+    draggedSkillGroupId.value = null
+    draggedSkillIndex.value = null
     draggedItemType.value = null
   }
 
@@ -666,7 +903,13 @@ export function useCharacterDetail() {
     handleDragEnd,
     handleDragOver,
     handleDragLeave,
-    handleDrop
+    handleDrop,
+    handleSkillDragStart,
+    handleSkillDragEnd,
+    handleSkillDragOver,
+    handleSkillDragLeave,
+    handleSkillDrop,
+    isCreating
   }
 }
 

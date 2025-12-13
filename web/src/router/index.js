@@ -15,6 +15,12 @@ const routes = [
     component: CharactersList
   },
   {
+    path: '/characters/new',
+    name: 'CharacterNew',
+    component: CharacterDetail,
+    props: true
+  },
+  {
     path: '/characters/:id',
     name: 'CharacterDetail',
     component: CharacterDetail,

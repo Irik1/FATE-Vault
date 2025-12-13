@@ -138,3 +138,38 @@ func deleteCharacter(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "character deleted successfully"})
 }
+
+func getTemplates(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if mongoClient == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database connection not available"})
+		return
+	}
+
+	coll := mongoClient.Database("main").Collection("templates")
+	cur, err := coll.Find(ctx, bson.D{})
+	if err != nil {
+		c.String(http.StatusInternalServerError, "find error: %v", err)
+		return
+	}
+	defer cur.Close(ctx)
+
+	var results []map[string]interface{}
+	for cur.Next(ctx) {
+		var doc bson.M
+		if err := cur.Decode(&doc); err != nil {
+			c.String(http.StatusInternalServerError, "decode error: %v", err)
+			return
+		}
+
+		results = append(results, doc)
+	}
+	if err := cur.Err(); err != nil {
+		c.String(http.StatusInternalServerError, "cursor error: %v", err)
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, results)
+}

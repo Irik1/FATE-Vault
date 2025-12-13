@@ -2,15 +2,15 @@
   <div class="character-detail">
     <div v-if="loading" class="loading">Loading character...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="character" class="character-wrapper">
+    <div v-else-if="character || isCreating" class="character-wrapper">
       <div class="header-actions">
         <button @click="goBack" class="back-btn">← Back to Characters</button>
         <div class="header-right-actions">
           <button @click="toggleLock" class="lock-btn" :class="{ locked: isLocked }">
-            {{ isLocked ? '🔒 Locked' : '🔓 Unlocked' }}
+            {{ isLocked ? '🔒 Customization locked' : 'Customization unlocked' }}
           </button>
           <button @click="saveCharacter" class="save-btn" :disabled="saving">
-            {{ saving ? 'Saving...' : 'Save Changes' }}
+            {{ saving ? (isCreating ? 'Creating...' : 'Saving...') : (isCreating ? 'Create' : 'Save Changes') }}
           </button>
         </div>
       </div>
@@ -107,7 +107,6 @@
               <tr>
                 <th style="width: 200px;">Type</th>
                 <th>Value</th>
-                <th style="width: 80px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -128,16 +127,9 @@
                 <td>
                   <input v-model="aspect.value" type="text" class="form-input" placeholder="Aspect value" :disabled="isLocked" />
                 </td>
-                <td>
-                  <div class="table-actions">
-                    <button v-if="!isLocked" @click="removeAspect(index)" class="btn-icon btn-remove" title="Remove aspect">
-                      ×
-                    </button>
-                  </div>
-                </td>
               </tr>
               <tr v-if="aspects.length === 0">
-                <td colspan="3" style="text-align: center; color: #6c757d; padding: 2rem;">
+                <td colspan="2" style="text-align: center; color: #6c757d; padding: 2rem;">
                   No aspects added yet
                 </td>
               </tr>
@@ -161,14 +153,28 @@
               />
               <span class="skill-level-description">{{ getSkillLevelDescription(group.level) }}</span>
             </div>
-            <div class="skill-list-compact">
-              <div v-for="(skill, index) in group.skills" :key="`${group.id}-${index}`" class="skill-item-compact">
+            <div 
+              class="skill-list-compact"
+              :data-group-id="group.id"
+              @dragover="handleSkillDragOver"
+              @dragleave="handleSkillDragLeave"
+              @drop="handleSkillDrop($event, group.id)"
+            >
+              <div 
+                v-for="(skill, index) in group.skills" 
+                :key="`${group.id}-${index}`" 
+                class="skill-item-compact"
+                :draggable="!isLocked"
+                @dragstart="handleSkillDragStart($event, group.id, index)"
+                @dragend="handleSkillDragEnd"
+              >
                 <input
                   v-model="group.skills[index]"
                   type="text"
                   class="form-input skill-input-compact"
                   :placeholder="`Skill name`"
                   :disabled="isLocked"
+                  @mousedown.stop
                 />
                 <button v-if="!isLocked" @click="removeSkill(group.id, index)" class="btn-icon btn-remove" title="Remove skill">
                   ×
@@ -193,7 +199,6 @@
               <tr>
                 <th style="width: 200px;">Name</th>
                 <th>Description</th>
-                <th style="width: 80px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -222,16 +227,9 @@
                     style="resize: none; overflow: hidden; min-height: 2.5rem;"
                   ></textarea>
                 </td>
-                <td>
-                  <div class="table-actions">
-                    <button v-if="!isLocked" @click="removeStunt(index)" class="btn-icon btn-remove" title="Remove stunt">
-                      ×
-                    </button>
-                  </div>
-                </td>
               </tr>
               <tr v-if="stunts.length === 0">
-                <td colspan="3" style="text-align: center; color: #6c757d; padding: 2rem;">
+                <td colspan="2" style="text-align: center; color: #6c757d; padding: 2rem;">
                   No stunts added yet
                 </td>
               </tr>
@@ -482,6 +480,12 @@ const {
   handleDragEnd,
   handleDragOver,
   handleDragLeave,
-  handleDrop
+  handleDrop,
+  handleSkillDragStart,
+  handleSkillDragEnd,
+  handleSkillDragOver,
+  handleSkillDragLeave,
+  handleSkillDrop,
+  isCreating
 } = useCharacterDetail()
 </script>
