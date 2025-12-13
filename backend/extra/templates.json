@@ -1,0 +1,231 @@
+[
+  {
+    "edition": "core",
+    "name": "",
+    "playMode": false,
+    "description": "",
+    "notes": "",
+    "images": [],
+    "aspects": [
+      {
+        "type": "High Concept",
+        "value": ""
+      },
+      {
+        "type": "Trouble",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      }
+    ],
+    "skills": [    
+    {
+      "level": "+0",
+      "skills": ["Познания", "Атлетика", "Воровство", "Контакты", "Ремесло", "Обман", "Вождение", "Эмпатия", "Драка", "Расследование","Внимательность", "Телосложение", "Провокация", "Взаимопонимание", "Ресурсы", "Стрельба", "Богатство", "Воля"]
+    }
+  ],
+    "refresh": {
+      "current": 0,
+      "max": 3
+    },
+    "extras": "",
+    "stunts": [],
+    "stress": [
+      {
+        "type": "physical",
+        "boxes": [
+          { "size": 1, "isFilled": false },
+          { "size": 2, "isFilled": false }
+        ]
+      },
+      {
+        "type": "mental",
+        "boxes": [
+          { "size": 1, "isFilled": false },
+          { "size": 2, "isFilled": false }
+        ]
+      }
+    ],
+    "consequences": [
+      {
+        "size": 2,
+        "type": "mild",
+        "description": "",
+        "status": "none"
+      },
+      {
+        "size": 4,
+        "type": "moderate",
+        "description": "",
+        "status": "none"
+      },
+      {
+        "size": 6,
+        "type": "severe",
+        "description": "",
+        "status": "none"
+      }
+    ]
+  },
+  {
+    "edition": "accelerated",
+    "name": "",
+    "playMode": false,
+    "description": "",
+    "notes": "",
+    "images": [],
+    "aspects": [
+      {
+        "type": "High Concept",
+        "value": ""
+      },
+      {
+        "type": "Trouble",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      }
+    ],
+    "skills": [
+    {
+      "level": "+0",
+      "skills": ["Аккуратный", "Умный", "Эффектный", "Сильный", "Проворный", "Хитрый"]
+    }
+    ],
+    "refresh": {
+      "current": 0,
+      "max": 3
+    },
+    "extras": "",
+    "stunts": [],
+    "stress": [
+      {
+        "type": "stress",
+        "boxes": [
+          { "size": 1, "isFilled": false },
+          { "size": 2, "isFilled": false }
+        ]
+      }
+    ],
+    "consequences": [
+      {
+        "size": 2,
+        "type": "mild",
+        "description": "",
+        "status": "none"
+      },
+      {
+        "size": 4,
+        "type": "moderate",
+        "description": "",
+        "status": "none"
+      },
+      {
+        "size": 6,
+        "type": "severe",
+        "description": "",
+        "status": "none"
+      }
+    ]
+  },
+  {
+    "edition": "condensed",
+    "name": "",
+    "playMode": false,
+    "description": "",
+    "notes": "",
+    "images": [],
+    "aspects": [
+      {
+        "type": "High Concept",
+        "value": ""
+      },
+      {
+        "type": "Trouble",
+        "value": ""
+      },
+      {
+        "type": "Relationship",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      },
+      {
+        "type": "Other",
+        "value": ""
+      }
+    ],
+    "skills": [
+    {
+      "level": "+0",
+      "skills": ["Академические знания", "Атлетика", "Воровство", "Контакты", "Ремесло", "Обман", "Вождение", "Эмпатия", "Драка", "Расследование", "Оккультные знания", "Внимательность", "Телосложение", "Провокация", "Взаимопонимание", "Ресурсы", "Стрельба", "Богатство", "Воля"]
+    }
+    ],
+    "refresh": {
+      "current": 0,
+      "max": 3
+    },
+    "extras": "",
+    "stunts": [],
+    "stress": [
+      {
+        "type": "physical",
+        "boxes": [
+          { "size": 1, "isFilled": false },
+          { "size": 1, "isFilled": false },
+          { "size": 1, "isFilled": false }
+        ]
+      },
+      {
+        "type": "mental",
+        "boxes": [
+          { "size": 1, "isFilled": false },
+          { "size": 1, "isFilled": false },
+          { "size": 1, "isFilled": false }
+        ]
+      }
+    ],
+    "consequences": [
+      {
+        "size": 2,
+        "type": "mild",
+        "description": "",
+        "status": "none"
+      },
+      {
+        "size": 4,
+        "type": "moderate",
+        "description": "",
+        "status": "none"
+      },
+      {
+        "size": 6,
+        "type": "severe",
+        "description": "",
+        "status": "none"
+      }
+    ]
+  }
+]
