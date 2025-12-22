@@ -1,4 +1,4 @@
-package main
+package routes
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	models "FATE-Vault/backend/models"
-	appRoutes "FATE-Vault/backend/routes"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +22,7 @@ type Refresh = models.Refresh
 type Consequence = models.Consequence
 type Stress = models.Stress
 type StressBox = models.StressBox
-type Stunt = models.Stunt
+type Stunt = models.CharacterStunt
 type Edition = models.Edition
 
 const (
@@ -105,7 +104,7 @@ func createTestRequest(method, url string, body interface{}) *http.Request {
 
 func TestCreateCharacter_Success(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/create", appRoutes.CreateCharacter)
+	router.POST("/characters/create", CreateCharacter)
 
 	character := createMockCharacter()
 	req := createTestRequest("POST", "/characters/create", character)
@@ -123,7 +122,7 @@ func TestCreateCharacter_Success(t *testing.T) {
 
 func TestCreateCharacter_InvalidJSON(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/create", appRoutes.CreateCharacter)
+	router.POST("/characters/create", CreateCharacter)
 
 	req, _ := http.NewRequest("POST", "/characters/create", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -140,7 +139,7 @@ func TestCreateCharacter_InvalidJSON(t *testing.T) {
 
 func TestCreateCharacter_EmptyBody(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/create", appRoutes.CreateCharacter)
+	router.POST("/characters/create", CreateCharacter)
 
 	req, _ := http.NewRequest("POST", "/characters/create", bytes.NewBufferString("{}"))
 	req.Header.Set("Content-Type", "application/json")
@@ -155,7 +154,7 @@ func TestCreateCharacter_EmptyBody(t *testing.T) {
 
 func TestUpdateCharacter_Success(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/update/:id", appRoutes.UpdateCharacter)
+	router.POST("/characters/update/:id", UpdateCharacter)
 
 	character := createMockCharacter()
 	req := createTestRequest("POST", "/characters/update/test-id-123", character)
@@ -170,7 +169,7 @@ func TestUpdateCharacter_Success(t *testing.T) {
 
 func TestUpdateCharacter_MissingID(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/update/:id", appRoutes.UpdateCharacter)
+	router.POST("/characters/update/:id", UpdateCharacter)
 
 	character := createMockCharacter()
 	req := createTestRequest("POST", "/characters/update/", character)
@@ -184,7 +183,7 @@ func TestUpdateCharacter_MissingID(t *testing.T) {
 
 func TestUpdateCharacter_InvalidJSON(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/update/:id", appRoutes.UpdateCharacter)
+	router.POST("/characters/update/:id", UpdateCharacter)
 
 	req, _ := http.NewRequest("POST", "/characters/update/test-id-123", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -201,7 +200,7 @@ func TestUpdateCharacter_InvalidJSON(t *testing.T) {
 
 func TestUpdateCharacter_EmptyID(t *testing.T) {
 	router := setupRouter()
-	router.POST("/characters/update/:id", appRoutes.UpdateCharacter)
+	router.POST("/characters/update/:id", UpdateCharacter)
 
 	character := createMockCharacter()
 	// Test with empty string as ID - this tests the handler's ID validation
@@ -217,7 +216,7 @@ func TestUpdateCharacter_EmptyID(t *testing.T) {
 
 func TestDeleteCharacter_Success(t *testing.T) {
 	router := setupRouter()
-	router.DELETE("/characters/delete/:id", appRoutes.DeleteCharacter)
+	router.DELETE("/characters/delete/:id", DeleteCharacter)
 
 	req, _ := http.NewRequest("DELETE", "/characters/delete/test-id-123", nil)
 	w := httptest.NewRecorder()
@@ -238,7 +237,7 @@ func TestDeleteCharacter_Success(t *testing.T) {
 
 func TestDeleteCharacter_MissingID(t *testing.T) {
 	router := setupRouter()
-	router.DELETE("/characters/delete/:id", appRoutes.DeleteCharacter)
+	router.DELETE("/characters/delete/:id", DeleteCharacter)
 
 	req, _ := http.NewRequest("DELETE", "/characters/delete/", nil)
 	w := httptest.NewRecorder()
@@ -251,7 +250,7 @@ func TestDeleteCharacter_MissingID(t *testing.T) {
 
 func TestDeleteCharacter_NotFound(t *testing.T) {
 	router := setupRouter()
-	router.DELETE("/characters/delete/:id", appRoutes.DeleteCharacter)
+	router.DELETE("/characters/delete/:id", DeleteCharacter)
 
 	req, _ := http.NewRequest("DELETE", "/characters/delete/non-existent-id", nil)
 	w := httptest.NewRecorder()
@@ -264,7 +263,7 @@ func TestDeleteCharacter_NotFound(t *testing.T) {
 
 func TestCharactersList(t *testing.T) {
 	router := setupRouter()
-	router.GET("/characters/list", appRoutes.CharactersList)
+	router.GET("/characters/list", CharactersList)
 
 	req, _ := http.NewRequest("GET", "/characters/list", nil)
 	w := httptest.NewRecorder()
@@ -353,7 +352,7 @@ func TestCreateCharacter_WithMockData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			router := setupRouter()
-			router.POST("/characters/create", appRoutes.CreateCharacter)
+			router.POST("/characters/create", CreateCharacter)
 
 			req := createTestRequest("POST", "/characters/create", tc.character)
 			w := httptest.NewRecorder()
@@ -372,7 +371,7 @@ func TestUpdateCharacter_WithMockData(t *testing.T) {
 	character := createMockCharacter()
 
 	router := setupRouter()
-	router.POST("/characters/update/:id", appRoutes.UpdateCharacter)
+	router.POST("/characters/update/:id", UpdateCharacter)
 
 	testCases := []struct {
 		name        string

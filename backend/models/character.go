@@ -44,7 +44,7 @@ type SkillGroup struct {
 	Skills []string `json:"skills" bson:"skills"`
 }
 
-type Stunt struct {
+type CharacterStunt struct {
 	Name        string `json:"name" bson:"name"`
 	Description string `json:"description" bson:"description"`
 }
@@ -57,13 +57,13 @@ type Character struct {
 	Images      []string `json:"images" bson:"images"`
 	Notes       string   `json:"notes" bson:"notes"`
 
-	Aspects      []Aspect      `json:"aspects" bson:"aspects"`
-	Skills       []SkillGroup  `json:"skills" bson:"skills"`
-	Refresh      Refresh       `json:"refresh" bson:"refresh"`
-	Extras       string        `json:"extras" bson:"extras"`
-	Stunts       []Stunt       `json:"stunts" bson:"stunts"`
-	Stress       []Stress      `json:"stress" bson:"stress"`
-	Consequences []Consequence `json:"consequences" bson:"consequences"`
+	Aspects      []Aspect         `json:"aspects" bson:"aspects"`
+	Skills       []SkillGroup     `json:"skills" bson:"skills"`
+	Refresh      Refresh          `json:"refresh" bson:"refresh"`
+	Extras       string           `json:"extras" bson:"extras"`
+	Stunts       []CharacterStunt `json:"stunts" bson:"stunts"`
+	Stress       []Stress         `json:"stress" bson:"stress"`
+	Consequences []Consequence    `json:"consequences" bson:"consequences"`
 
 	CreatedAt time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
