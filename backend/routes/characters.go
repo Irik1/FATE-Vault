@@ -142,7 +142,7 @@ func DeleteCharacter(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "character deleted successfully"})
 }
 
-func GetTemplates(c *gin.Context) {
+func FindCharacters(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -151,23 +151,34 @@ func GetTemplates(c *gin.Context) {
 		return
 	}
 
-	coll := db.Client.Database("main").Collection("templates")
-	cur, err := coll.Find(ctx, bson.D{})
+	filter := bson.M{}
+	if edition := c.Query("edition"); edition != "" {
+		filter["edition"] = edition
+	}
+	if name := c.Query("name"); name != "" {
+		filter["name"] = bson.M{"$regex": name, "$options": "i"}
+	}
+	if characterIds := c.QueryArray("characterIds"); len(characterIds) > 0 {
+		filter["_id"] = bson.M{"$in": characterIds}
+	}
+
+	coll := db.Client.Database("main").Collection("characters")
+	cur, err := coll.Find(ctx, filter)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "find error: %v", err)
 		return
 	}
 	defer cur.Close(ctx)
 
-	var results []map[string]interface{}
+	var results []models.Character
 	for cur.Next(ctx) {
-		var doc bson.M
-		if err := cur.Decode(&doc); err != nil {
+		var character models.Character
+		if err := cur.Decode(&character); err != nil {
 			c.String(http.StatusInternalServerError, "decode error: %v", err)
 			return
 		}
 
-		results = append(results, doc)
+		results = append(results, character)
 	}
 	if err := cur.Err(); err != nil {
 		c.String(http.StatusInternalServerError, "cursor error: %v", err)
@@ -176,5 +187,3 @@ func GetTemplates(c *gin.Context) {
 
 	c.IndentedJSON(http.StatusOK, results)
 }
-
-
