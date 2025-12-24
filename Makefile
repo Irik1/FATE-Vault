@@ -21,3 +21,11 @@ dev:
 	@echo "All services started."
 	wait
 
+backend-test:
+	cd $(BACKEND_DIR) && go test ./...
+
+backend-test-coverage:
+	cd $(BACKEND_DIR) && \
+	go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./... && \
+	go tool cover -func=coverage.out
+
