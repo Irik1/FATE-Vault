@@ -58,6 +58,8 @@ func createMockCharacter() Character {
 		Consequences: []Consequence{
 			{Type: "mild", Size: 2, Description: "", Status: "none"},
 		},
+		IsPublished: true,
+		CreatorID:   "",
 	}
 }
 
@@ -69,12 +71,14 @@ func createMockCharacterDocuments() []bson.M {
 			"name":        "Character 1",
 			"edition":     "core",
 			"description": "First test character",
+			"isPublished": true,
 		},
 		{
 			"_id":         "test-id-2",
 			"name":        "Character 2",
 			"edition":     "accelerated",
 			"description": "Second test character",
+			"isPublished": true,
 		},
 	}
 }
@@ -336,14 +340,18 @@ func TestCreateCharacter_WithMockData(t *testing.T) {
 					{Type: "mild", Size: 2, Description: "Mild consequence", Status: "active"},
 					{Type: "moderate", Size: 4, Description: "Moderate consequence", Status: "none"},
 				},
+				IsPublished: true,
+				CreatorID:   "",
 			},
 			expectError: false,
 		},
 		{
 			name: "minimal character",
 			character: Character{
-				Edition: Core,
-				Name:    "Minimal",
+				Edition:     Core,
+				Name:        "Minimal",
+				IsPublished: true,
+				CreatorID:   "",
 			},
 			expectError: false,
 		},
@@ -392,6 +400,8 @@ func TestUpdateCharacter_WithMockData(t *testing.T) {
 				Edition:     Condensed,
 				Name:        "Updated Character",
 				Description: "Updated description",
+				IsPublished: true,
+				CreatorID:   "",
 			},
 			expectError: false,
 		},

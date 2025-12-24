@@ -12,6 +12,26 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+func visibilityFilter(c *gin.Context) bson.M {
+	filter := bson.M{
+		"isPublished": true,
+		"creatorId":   bson.M{"$exists": false},
+	}
+
+	userId, exists := c.Get("userId")
+	if exists && userId != nil {
+		userIdStr, ok := userId.(string)
+		if ok && userIdStr != "" {
+			filter["$or"] = []bson.M{
+				{"creatorId": bson.M{"$exists": false}},
+				{"creatorId": userIdStr},
+			}
+		}
+	}
+
+	return filter
+}
+
 func CharactersList(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -21,8 +41,11 @@ func CharactersList(c *gin.Context) {
 		return
 	}
 
+	// Build filter for published characters visible to current user
+	filter := visibilityFilter(c)
+
 	coll := db.Client.Database("main").Collection("characters")
-	cur, err := coll.Find(ctx, bson.D{})
+	cur, err := coll.Find(ctx, filter)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "find error: %v", err)
 		return
@@ -151,7 +174,10 @@ func FindCharacters(c *gin.Context) {
 		return
 	}
 
-	filter := bson.M{}
+	// Start with visibility filter
+	filter := visibilityFilter(c)
+
+	// Add query parameter filters
 	if edition := c.Query("edition"); edition != "" {
 		filter["edition"] = edition
 	}

@@ -65,6 +65,9 @@ type Character struct {
 	Stress       []Stress         `json:"stress" bson:"stress"`
 	Consequences []Consequence    `json:"consequences" bson:"consequences"`
 
+	IsPublished bool   `json:"isPublished" bson:"isPublished"`
+	CreatorID   string `json:"creatorId,omitempty" bson:"creatorId,omitempty"`
+
 	CreatedAt time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 }
