@@ -79,14 +79,6 @@ func RegisterUser(c *gin.Context) {
 		Username: req.Username,
 		Role:     role,
 	}
-	// Hard guarantee: never insert an empty _id.
-	if user.ID == "" {
-		user.ID = uuid.NewString()
-		if user.ID == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate user id"})
-			return
-		}
-	}
 
 	// Hash password
 	if err := user.SetPassword(req.Password); err != nil {

@@ -9,6 +9,7 @@ import (
 	"FATE-Vault/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -19,6 +20,19 @@ func visibilityFilter(c *gin.Context) bson.M {
 	}
 
 	userId, exists := c.Get("userId")
+	if !exists || userId == nil {
+		if sessionID := sessionIDFromRequest(c); sessionID != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			user, _, err := UserFromSessionID(ctx, sessionID)
+			if err == nil && user != nil && user.ID != "" {
+				userId = user.ID
+				exists = true
+			}
+		}
+	}
+
 	if exists && userId != nil {
 		userIdStr, ok := userId.(string)
 		if ok && userIdStr != "" {
@@ -78,6 +92,16 @@ func CreateCharacter(c *gin.Context) {
 	if err := c.ShouldBindJSON(&character); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Always assign a new UUID for the character ID
+	character.ID = uuid.NewString()
+
+	// Attach creatorId from the authenticated user (if available)
+	if userId, exists := c.Get("userId"); exists {
+		if userIdStr, ok := userId.(string); ok && userIdStr != "" {
+			character.CreatorID = userIdStr
+		}
 	}
 
 	if db.Client == nil {

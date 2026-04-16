@@ -24,10 +24,6 @@
             <dt>Role</dt>
             <dd>{{ user.role }}</dd>
           </div>
-          <div v-if="user._id">
-            <dt>User ID</dt>
-            <dd class="mono">{{ user._id }}</dd>
-          </div>
         </dl>
 
         <h2 class="section-title">Update username</h2>
@@ -166,12 +162,6 @@ dt {
 dd {
   margin: 0;
   color: #333;
-}
-
-.mono {
-  font-family: ui-monospace, monospace;
-  font-size: 0.85rem;
-  word-break: break-all;
 }
 
 .inline-form {

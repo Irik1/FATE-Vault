@@ -20,11 +20,8 @@ func GetTemplates(c *gin.Context) {
 		return
 	}
 
-	// Build filter for published templates visible to current user
-	filter := visibilityFilter(c)
-
 	coll := db.Client.Database("main").Collection("templates")
-	cur, err := coll.Find(ctx, filter)
+	cur, err := coll.Find(ctx, bson.D{})
 	if err != nil {
 		c.String(http.StatusInternalServerError, "find error: %v", err)
 		return

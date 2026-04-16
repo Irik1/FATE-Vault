@@ -116,7 +116,7 @@ const loadTemplates = async () => {
   templatesLoading.value = true
   try {
     const data = await characterService.getTemplates()
-    templates.value = data
+    templates.value = Array.isArray(data) ? data : []
   } catch (err) {
     console.error('Error loading templates:', err)
     // Fallback to empty array if templates can't be loaded

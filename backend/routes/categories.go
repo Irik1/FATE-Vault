@@ -9,6 +9,7 @@ import (
 	"FATE-Vault/backend/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -21,6 +22,9 @@ func CreateCategory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Always assign a new UUID for the category ID
+	category.ID = uuid.NewString()
 
 	if db.Client == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database connection not available"})

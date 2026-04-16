@@ -7,7 +7,6 @@ import (
 )
 
 type Users struct {
-	// ID is a UUID string stored as MongoDB _id.
 	ID string `json:"_id,omitempty" bson:"_id,omitempty"`
 
 	Username       string `json:"username" bson:"username"`
