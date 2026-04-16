@@ -2,25 +2,11 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 })
-
-api.interceptors.request.use((config) => {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('authToken') : null
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
-/** Store JWT after login; pass null to clear. */
-export function setAuthToken(token) {
-  if (typeof localStorage === 'undefined') return
-  if (token) localStorage.setItem('authToken', token)
-  else localStorage.removeItem('authToken')
-}
 
 export const characterService = {
   async getCharacters() {
@@ -129,6 +115,7 @@ export const stuntService = {
 export const userService = {
   /**
    * @param {{ username: string, password: string, role?: string }} body
+   * @returns {Promise<{ user: object }>} Sets HttpOnly session cookie on success.
    */
   async register(body) {
     const response = await api.post('/users/register', body)
@@ -136,15 +123,24 @@ export const userService = {
   },
 
   /**
-   * Login with username/password, or refresh session with token in body / header.
-   * Sets authToken when response includes token.
-   * @param {{ username?: string, password?: string, token?: string }} body
+   * Login with username/password. Session is the HttpOnly cookie; response body is `{ user }` only.
+   * @param {{ username: string, password: string }} body
    */
-  async auth(body = {}) {
+  async auth(body) {
     const response = await api.post('/users/auth', body)
-    const data = response.data
-    if (data && data.token) setAuthToken(data.token)
-    return data
+    return response.data
+  },
+
+  /**
+   * Returns current authenticated user via middleware-protected route.
+   */
+  async me() {
+    const response = await api.get('/users/me')
+    return response.data
+  },
+
+  async logout() {
+    await api.post('/users/logout')
   },
 
   /**

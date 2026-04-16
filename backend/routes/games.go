@@ -141,4 +141,3 @@ func ListGames(c *gin.Context) {
 
 	c.IndentedJSON(http.StatusOK, results)
 }
-

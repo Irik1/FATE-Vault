@@ -3,6 +3,9 @@ import CharactersList from '../views/CharactersList.vue'
 import CharacterDetail from '../views/CharacterDetail.vue'
 import Stunts from '../views/Stunts.vue'
 import User from '../views/User.vue'
+import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
+import { user } from '../composables/useAuth'
 
 const routes = [
   {
@@ -35,12 +38,32 @@ const routes = [
     path: '/user',
     name: 'User',
     component: User
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { guestOnly: true }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Register,
+    meta: { guestOnly: true }
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach((to, _from, next) => {
+  if (to.meta.guestOnly && user.value) {
+    next({ name: 'User' })
+    return
+  }
+  next()
 })
 
 export default router

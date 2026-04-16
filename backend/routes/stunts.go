@@ -141,4 +141,3 @@ func ListStunts(c *gin.Context) {
 
 	c.IndentedJSON(http.StatusOK, results)
 }
-

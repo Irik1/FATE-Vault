@@ -3,16 +3,14 @@ package routes
 import (
 	"context"
 	"net/http"
-	"strings"
 	"time"
 
 	"FATE-Vault/backend/db"
 	"FATE-Vault/backend/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -25,7 +23,6 @@ type RegisterRequest struct {
 type AuthRequest struct {
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
-	Token    string `json:"token,omitempty"`
 }
 
 type UpdateUserRequest struct {
@@ -78,8 +75,17 @@ func RegisterUser(c *gin.Context) {
 
 	// Create new user
 	user := models.Users{
+		ID:       uuid.NewString(),
 		Username: req.Username,
 		Role:     role,
+	}
+	// Hard guarantee: never insert an empty _id.
+	if user.ID == "" {
+		user.ID = uuid.NewString()
+		if user.ID == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate user id"})
+			return
+		}
 	}
 
 	// Hash password
@@ -88,22 +94,50 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 
-	result, err := coll.InsertOne(ctx, user)
+	_, err = coll.InsertOne(ctx, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user: " + err.Error()})
 		return
 	}
 
-	// Get the inserted ID
-	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
-		user.ID = oid.Hex()
-	} else if strID, ok := result.InsertedID.(string); ok {
-		user.ID = strID
-	}
-
-	// Return user without password
+	// Return user without password; session ID is stored in HttpOnly cookie.
 	user.HashedPassword = ""
-	c.JSON(http.StatusCreated, user)
+	session := sessionManager.Create(user.ID)
+	setSessionCookie(c, session.ID)
+	c.JSON(http.StatusCreated, gin.H{"user": user})
+}
+
+func respondWithSessionUser(c *gin.Context, user *models.Users, status int) error {
+	// Rotate existing session ID to mitigate session fixation.
+	if oldSessionID := sessionIDFromRequest(c); oldSessionID != "" {
+		sessionManager.Destroy(oldSessionID)
+	}
+	session := sessionManager.Create(user.ID)
+	setSessionCookie(c, session.ID)
+	u := *user
+	u.HashedPassword = ""
+	c.JSON(status, gin.H{"user": u})
+	return nil
+}
+
+// GetCurrentUser returns user data from already-authenticated middleware context.
+func GetCurrentUser(c *gin.Context) {
+	user, ok := GetUserFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	user.HashedPassword = ""
+	c.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+// LogoutUser clears the session cookie.
+func LogoutUser(c *gin.Context) {
+	if sessionID := sessionIDFromRequest(c); sessionID != "" {
+		sessionManager.Destroy(sessionID)
+	}
+	clearSessionCookie(c)
+	c.Status(http.StatusNoContent)
 }
 
 func AuthUser(c *gin.Context) {
@@ -116,43 +150,6 @@ func AuthUser(c *gin.Context) {
 	}
 
 	coll := db.Client.Database("main").Collection("users")
-	var user models.Users
-
-	// Check Authorization header first
-	authHeader := c.GetHeader("Authorization")
-	if authHeader != "" {
-		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) == 2 && parts[0] == "Bearer" {
-			tokenString := parts[1]
-			claims := &Claims{}
-			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return jwtSecret, nil
-			})
-
-			if err == nil && token.Valid {
-				// Find user by ID from token
-				filter := bson.M{"_id": claims.UserID}
-				err = coll.FindOne(ctx, filter).Decode(&user)
-				if err == nil {
-					// Generate new token
-					newToken, err := GenerateToken(&user)
-					if err == nil {
-						// Return user and token
-						user.HashedPassword = ""
-						c.JSON(http.StatusOK, gin.H{
-							"user":  user,
-							"token": newToken,
-						})
-						return
-					}
-				}
-			}
-		}
-	}
 
 	var req AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -160,56 +157,12 @@ func AuthUser(c *gin.Context) {
 		return
 	}
 
-	// If token is provided in request body, validate it and return user info
-	if req.Token != "" {
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(req.Token, claims, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return jwtSecret, nil
-		})
-
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
-			return
-		}
-
-		// Find user by ID from token
-		filter := bson.M{"_id": claims.UserID}
-		err = coll.FindOne(ctx, filter).Decode(&user)
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find user: " + err.Error()})
-			return
-		}
-
-		// Generate new token
-		newToken, err := GenerateToken(&user)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token: " + err.Error()})
-			return
-		}
-
-		// Return user and token
-		user.HashedPassword = ""
-		c.JSON(http.StatusOK, gin.H{
-			"user":  user,
-			"token": newToken,
-		})
-		return
-	}
-
-	// If no token, require username and password
 	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "either token or username/password is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username and password are required"})
 		return
 	}
 
-	// Find user by username
+	var user models.Users
 	filter := bson.M{"username": req.Username}
 	err := coll.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
@@ -220,26 +173,14 @@ func AuthUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find user: " + err.Error()})
 		return
 	}
-
-	// Check password
 	if !user.CheckPassword(req.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
 
-	// Generate token
-	token, err := GenerateToken(&user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token: " + err.Error()})
-		return
+	if err := respondWithSessionUser(c, &user, http.StatusOK); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session: " + err.Error()})
 	}
-
-	// Return user and token
-	user.HashedPassword = ""
-	c.JSON(http.StatusOK, gin.H{
-		"user":  user,
-		"token": token,
-	})
 }
 
 func UpdateUser(c *gin.Context) {

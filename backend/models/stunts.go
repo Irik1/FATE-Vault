@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Stunt struct {
-	ID          string  `json:"_id" bson:"_id"`
+	ID          string  `json:"_id" bson:"_id,omitempty"`
 	Edition     Edition `json:"edition" bson:"edition"`
 	Name        string  `json:"name" bson:"name"`
 	Description string  `json:"description" bson:"description"`

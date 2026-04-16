@@ -3,7 +3,7 @@ package models
 import "time"
 
 type CharacterCategory struct {
-	ID   string `json:"_id" bson:"_id"`
+	ID   string `json:"_id" bson:"_id,omitempty"`
 	Name string `json:"name" bson:"name"`
 
 	Subcategories []CharacterCategory `json:"subcategories,omitempty" bson:"subcategories,omitempty"`

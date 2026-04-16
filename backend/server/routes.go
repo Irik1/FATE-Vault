@@ -35,5 +35,7 @@ func registerRoutes(router *gin.Engine) {
 	//users
 	router.POST("/users/register", routes.RegisterUser)
 	router.POST("/users/auth", routes.AuthUser)
+	router.POST("/users/logout", routes.LogoutUser)
+	router.GET("/users/me", routes.AuthMiddleware(), routes.GetCurrentUser)
 	router.POST("/users/update/:id", routes.AuthMiddleware(), routes.UpdateUser)
 }
